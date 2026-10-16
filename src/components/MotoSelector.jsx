@@ -10,6 +10,7 @@ export default function MotoSelector({
   onUpdateMotoDays,
   onClearMotos,
   defaultDays = 1,
+  lang = "kh",
   t,
 }) {
   const [previewImage, setPreviewImage] = useState(null);
@@ -172,7 +173,8 @@ export default function MotoSelector({
                     <div
                       className="selected-thumbnail-wrap"
                       style={{ width: "56px", height: "56px", borderRadius: "6px" }}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setPreviewImage(moto.image);
                         setPreviewTitle(moto.name);
                       }}
@@ -324,8 +326,11 @@ export default function MotoSelector({
         <ImageModal
           isOpen={Boolean(previewImage)}
           onClose={() => setPreviewImage(null)}
+          image={previewImage}
           imageSrc={previewImage}
           title={previewTitle}
+          lang={lang}
+          t={t}
         />
       )}
     </div>

@@ -147,40 +147,6 @@ export default function AddonSelector({
         </select>
       </div>
 
-      {/* Quick clickable chips for popular items */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: selectedCount > 0 ? "14px" : "0" }}>
-        {addons.map((addon) => {
-          const isSelected = (addonQuantities[addon.id] || 0) > 0;
-          return (
-            <button
-              key={addon.id}
-              type="button"
-              onClick={() => handleToggleAddon(addon.id)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                padding: "4px 10px",
-                borderRadius: "20px",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                border: isSelected ? "1px solid #0f172a" : "1px solid #e2e8f0",
-                background: isSelected ? "#0f172a" : "#ffffff",
-                color: isSelected ? "#ffffff" : "#334155",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-            >
-              {isSelected ? <Check size={12} color="#ffffff" /> : <Plus size={12} color="#64748b" />}
-              <span>{addon.name}</span>
-              <span style={{ opacity: 0.8, fontSize: "0.7rem" }}>
-                {addon.price === 0 ? "(Free)" : `($${addon.price})`}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* ONLY SHOW CHECKED/SELECTED EXTRAS: IF NOT CHECKED, DON'T SHOW */}
       {selectedAddonsList.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px" }}>

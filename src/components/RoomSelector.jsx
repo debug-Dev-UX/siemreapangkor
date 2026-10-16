@@ -10,6 +10,7 @@ export default function RoomSelector({
   onUpdateRoomNights,
   onClearRooms,
   defaultNights = 1,
+  lang = "kh",
   t,
 }) {
   const [previewImage, setPreviewImage] = useState(null);
@@ -172,7 +173,8 @@ export default function RoomSelector({
                     <div
                       className="selected-thumbnail-wrap"
                       style={{ width: "56px", height: "56px", borderRadius: "6px" }}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setPreviewImage(room.image);
                         setPreviewTitle(room.name);
                       }}
@@ -319,8 +321,11 @@ export default function RoomSelector({
         <ImageModal
           isOpen={Boolean(previewImage)}
           onClose={() => setPreviewImage(null)}
+          image={previewImage}
           imageSrc={previewImage}
           title={previewTitle}
+          lang={lang}
+          t={t}
         />
       )}
     </div>

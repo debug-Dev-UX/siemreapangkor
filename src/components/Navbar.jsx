@@ -29,15 +29,30 @@ export default function Navbar({ onReset, settings, lang, onToggleLang, t }) {
           </div>
 
           <div className="nav-actions">
-            {/* Language Switcher Button (KH / EN) */}
+            {/* Language Switcher Button with National Flags */}
             <button
               className="btn-secondary"
               onClick={onToggleLang}
-              style={{ fontWeight: 700, padding: "7px 12px", fontSize: "0.82rem" }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontWeight: 700,
+                padding: "6px 12px",
+                fontSize: "0.82rem",
+                borderRadius: "6px",
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                cursor: "pointer",
+              }}
               title="Change language / ផ្លាស់ប្តូរភាសា"
             >
-              <Globe size={14} />
-              <span>{lang === "en" ? "KH" : "EN"}</span>
+              <span style={{ fontSize: "1.15rem", lineHeight: 1 }}>
+                {lang === "kh" ? "🇰🇭" : "🇬🇧"}
+              </span>
+              <span style={{ fontWeight: 800, color: "#0f172a" }}>
+                {lang === "kh" ? "ខ្មែរ (KH)" : "English (EN)"}
+              </span>
             </button>
 
             <a

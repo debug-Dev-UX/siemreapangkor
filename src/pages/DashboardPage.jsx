@@ -22,8 +22,14 @@ export default function DashboardPage() {
   const [addons] = useState(data.addons || []);
   const [coupons, setCoupons] = useState(data.coupons || []);
 
-  // Language state (en or kh)
-  const [lang, setLang] = useState("en");
+  // Language state (default to khmer 'kh' on first visit, or read from localStorage)
+  const [lang, setLang] = useState(() => {
+    try {
+      return localStorage.getItem("preferred_lang") || "kh";
+    } catch (e) {
+      return "kh";
+    }
+  });
   const t = translations[lang];
 
   // Default dates
@@ -476,12 +482,18 @@ Hello! I selected this quote on your website and would like to confirm booking a
   };
 
   const handleToggleLang = () => {
-    setLang((prev) => (prev === "en" ? "kh" : "en"));
+    setLang((prev) => {
+      const next = prev === "en" ? "kh" : "en";
+      try {
+        localStorage.setItem("preferred_lang", next);
+      } catch (e) {}
+      return next;
+    });
   };
 
   return (
     <div>
-      {/* Navbar with KH - EN language switcher */}
+      {/* Navbar with National Flag language switcher */}
       <Navbar
         settings={settings}
         onReset={handleReset}
@@ -510,6 +522,7 @@ Hello! I selected this quote on your website and would like to confirm booking a
           onUpdateRoomNights={handleUpdateRoomNights}
           onClearRooms={handleClearRooms}
           defaultNights={tripDays}
+          lang={lang}
           t={t}
         />
 
@@ -522,6 +535,7 @@ Hello! I selected this quote on your website and would like to confirm booking a
           onUpdateMotoDays={handleUpdateMotoDays}
           onClearMotos={handleClearMotos}
           defaultDays={tripDays}
+          lang={lang}
           t={t}
         />
 
@@ -531,6 +545,7 @@ Hello! I selected this quote on your website and would like to confirm booking a
           addonQuantities={addonQuantities}
           onUpdateAddonQty={handleUpdateAddonQty}
           days={tripDays}
+          lang={lang}
           t={t}
         />
       </main>

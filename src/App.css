@@ -976,7 +976,6 @@
   background: #1e293b;
 }
 
-.cart-count-badge {
 /* ========================================================
    CLEAN LUXURY DESIGN SYSTEM (MINIMALIST & SPACIOUS)
    ======================================================== */
@@ -1809,9 +1808,6 @@
 .cart-ghost-action:hover {
   background: #e2e8f0;
   color: #0f172a;
-}
-  border-color: #0f172a;
-  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.1);
 }
 
 .selected-preview-card {

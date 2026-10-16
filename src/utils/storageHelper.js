@@ -2,17 +2,21 @@ import { storage } from "../firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { INITIAL_ROOMS, INITIAL_MOTOS, INITIAL_SETTINGS, INITIAL_ADDONS, INITIAL_COUPONS } from "../data/initialData";
 
-// New keys without demo data
-const ROOMS_KEY = "siemreap_angkor_rooms_clean_v3";
-const MOTOS_KEY = "siemreap_angkor_motos_clean_v3";
-const SETTINGS_KEY = "siemreap_angkor_settings_clean_v3";
-const ADDONS_KEY = "siemreap_angkor_addons_clean_v3";
-const INQUIRIES_KEY = "siemreap_angkor_inquiries_clean_v3";
-const COUPONS_KEY = "siemreap_angkor_coupons_clean_v3";
+// New clean keys without demo data
+const ROOMS_KEY = "siemreap_angkor_rooms_clean_v4";
+const MOTOS_KEY = "siemreap_angkor_motos_clean_v4";
+const SETTINGS_KEY = "siemreap_angkor_settings_clean_v4";
+const ADDONS_KEY = "siemreap_angkor_addons_clean_v4";
+const INQUIRIES_KEY = "siemreap_angkor_inquiries_clean_v4";
+const COUPONS_KEY = "siemreap_angkor_coupons_clean_v4";
 
 export function loadStoredData() {
-  // Clear any old demo keys if present
+  // Clear any old demo/test keys if present
   try {
+    localStorage.removeItem("siemreap_angkor_rooms_clean_v3");
+    localStorage.removeItem("siemreap_angkor_motos_clean_v3");
+    localStorage.removeItem("siemreap_angkor_inquiries_clean_v3");
+    localStorage.removeItem("siemreap_angkor_coupons_clean_v3");
     localStorage.removeItem("siemreap_angkor_rooms_v2");
     localStorage.removeItem("siemreap_angkor_motos_v2");
     localStorage.removeItem("siemreap_angkor_rooms_v1");

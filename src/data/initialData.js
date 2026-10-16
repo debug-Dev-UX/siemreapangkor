@@ -88,26 +88,6 @@ export const INITIAL_SETTINGS = {
   topPromoText: "FREE 2 HELMETS & PHONE HOLDER WITH EVERY MOTORBIKE • INSTANT PREVIEW",
 };
 
-export const INITIAL_COUPONS = [
-  {
-    id: "coupon-1",
-    code: "ANGKOR10",
-    discountType: "percent",
-    discountValue: 10,
-    expireDate: "2026-12-31",
-    usageLimit: 10,
-    usedCount: 0,
-    description: "10% Off for Siem Reap Angkor Visitors (Max 10 people)",
-  },
-  {
-    id: "coupon-2",
-    code: "WELCOME5",
-    discountType: "fixed",
-    discountValue: 5,
-    expireDate: "2026-12-31",
-    usageLimit: 20,
-    usedCount: 0,
-    description: "$5 Off First Booking / Rental (Max 20 people)",
-  },
-];
+export const INITIAL_COUPONS = [];
+
 

@@ -48,6 +48,18 @@ export function subscribeToCloudData(onUpdate) {
           if (typeof onUpdate === "function") {
             onUpdate(cloudData);
           }
+        } else {
+          // If cloud document does not exist yet, seed it from local data so all devices get the same data
+          const current = loadStoredData();
+          syncToCloud({
+            rooms: current.rooms,
+            motos: current.motos,
+            settings: current.settings,
+            addons: current.addons,
+            coupons: current.coupons,
+            inquiries: current.inquiries,
+            lastSyncedAt: new Date().toISOString(),
+          });
         }
       },
       (err) => {
@@ -59,6 +71,21 @@ export function subscribeToCloudData(onUpdate) {
     console.warn("Failed to subscribe to cloud data:", err);
     return () => {};
   }
+}
+
+// Force sync all local data to cloud so every device receives the exact same items immediately
+export async function forcePushAllToCloud() {
+  const current = loadStoredData();
+  await syncToCloud({
+    rooms: current.rooms,
+    motos: current.motos,
+    settings: current.settings,
+    addons: current.addons,
+    coupons: current.coupons,
+    inquiries: current.inquiries,
+    lastSyncedAt: new Date().toISOString(),
+  });
+  return current;
 }
 
 export function loadStoredData() {

@@ -11,6 +11,7 @@ export const INITIAL_ADDONS = [
     price: 2,
     type: "one-time",
     category: "paid",
+    image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=500&auto=format&fit=crop&q=80",
     description: "Comfortable breathable motorcycle riding gloves for sun and grip",
   },
   {
@@ -19,6 +20,7 @@ export const INITIAL_ADDONS = [
     price: 15,
     type: "one-time",
     category: "paid",
+    image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=500&auto=format&fit=crop&q=80",
     description: "Private AC car transfer directly from new Siem Reap airport to your hotel",
   },
   {
@@ -27,6 +29,7 @@ export const INITIAL_ADDONS = [
     price: 5,
     type: "one-time",
     category: "paid",
+    image: "https://images.unsplash.com/photo-1563770660941-20978e870e26?w=500&auto=format&fit=crop&q=80",
     description: "Ready-to-use local SIM card with high-speed 4G data for Google Maps",
   },
   {
@@ -35,6 +38,7 @@ export const INITIAL_ADDONS = [
     price: 4,
     type: "one-time",
     category: "paid",
+    image: "https://images.unsplash.com/photo-1527018607912-0bb0dc55b184?w=500&auto=format&fit=crop&q=80",
     description: "Pick up your scooter with 100% full tank, drive immediately to Angkor",
   },
   {
@@ -43,6 +47,7 @@ export const INITIAL_ADDONS = [
     price: 1,
     type: "per-day",
     category: "paid",
+    image: "https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=500&auto=format&fit=crop&q=80",
     description: "Additional sanitized safety helmet for third passenger",
   },
   // Free Inclusions
@@ -53,6 +58,7 @@ export const INITIAL_ADDONS = [
     type: "free",
     category: "free",
     defaultQty: 2,
+    image: "https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=500&auto=format&fit=crop&q=80",
     description: "Sanitized certified safety helmets included free with your motorbike",
   },
   {
@@ -62,6 +68,7 @@ export const INITIAL_ADDONS = [
     type: "free",
     category: "free",
     defaultQty: 1,
+    image: "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=500&auto=format&fit=crop&q=80",
     description: "Secure handlebar phone mount for easy navigation around Angkor",
   },
   {
@@ -71,6 +78,7 @@ export const INITIAL_ADDONS = [
     type: "free",
     category: "free",
     defaultQty: 1,
+    image: "https://images.unsplash.com/photo-1524661135-423995f22d0b?w=500&auto=format&fit=crop&q=80",
     description: "Curated Google Maps pins for best photography & quiet temple tracks",
   },
 ];

@@ -1,5 +1,6 @@
-import React from "react";
-import { Plus, Minus, PackageCheck, X } from "lucide-react";
+import React, { useState } from "react";
+import { Plus, Minus, PackageCheck, X, Eye } from "lucide-react";
+import ImageModal from "./ImageModal";
 
 export default function AddonSelector({
   addons = [],
@@ -8,6 +9,9 @@ export default function AddonSelector({
   days = 1,
   t,
 }) {
+  const [previewImage, setPreviewImage] = useState(null);
+  const [previewTitle, setPreviewTitle] = useState("");
+
   if (!addons || addons.length === 0) return null;
 
   const paidAddons = addons.filter((a) => a.price > 0);
@@ -140,7 +144,28 @@ export default function AddonSelector({
             return (
               <div key={addon.id} className={`clean-item-card ${isFree ? "clean-item-card-free" : ""}`}>
                 <div className="clean-item-top">
-                  <div className="clean-item-details" style={{ width: "100%" }}>
+                  {/* Photo or Icon */}
+                  {addon.image ? (
+                    <div
+                      className="clean-item-thumb"
+                      onClick={() => {
+                        setPreviewImage(addon.image);
+                        setPreviewTitle(addon.name);
+                      }}
+                      title="Preview Photo"
+                    >
+                      <img src={addon.image} alt={addon.name} />
+                      <div className="thumb-zoom-overlay">
+                        <Eye size={14} color="#ffffff" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="clean-item-thumb-placeholder">
+                      <PackageCheck size={20} color="#94a3b8" />
+                    </div>
+                  )}
+
+                  <div className="clean-item-details">
                     <div className="clean-item-row-top">
                       <div>
                         <div className="clean-item-title">
@@ -202,6 +227,14 @@ export default function AddonSelector({
           })}
         </div>
       )}
+
+      {/* Photo Preview Modal */}
+      <ImageModal
+        isOpen={Boolean(previewImage)}
+        imageUrl={previewImage}
+        title={previewTitle}
+        onClose={() => setPreviewImage(null)}
+      />
     </section>
   );
 }

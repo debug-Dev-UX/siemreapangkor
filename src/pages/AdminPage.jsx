@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Lock,
@@ -20,6 +20,9 @@ import {
   X,
   Eye,
   EyeOff,
+  Cloud,
+  CloudUpload,
+  RefreshCw,
 } from "lucide-react";
 import logoImg from "../assets/logo.png";
 import {
@@ -31,6 +34,7 @@ import {
   saveCoupons,
   convertFileToBinaryDataUrl,
   subscribeToCloudData,
+  forcePushAllToCloud,
 } from "../utils/storageHelper";
 
 export default function AdminPage() {
@@ -92,18 +96,23 @@ export default function AdminPage() {
 
   // Add-ons Edit/Add state
   const [editingAddon, setEditingAddon] = useState(null);
+  const [addonUploading, setAddonUploading] = useState(false);
   const [addonForm, setAddonForm] = useState({
     id: "",
     name: "",
     price: 5,
     type: "one-time",
     description: "",
+    image: "",
   });
 
   const handleOpenAddonForm = (addon = null) => {
     if (addon) {
       setEditingAddon(addon.id);
-      setAddonForm({ ...addon });
+      setAddonForm({
+        ...addon,
+        image: addon.image || "",
+      });
     } else {
       setEditingAddon("new");
       setAddonForm({
@@ -112,7 +121,23 @@ export default function AdminPage() {
         price: 5,
         type: "one-time",
         description: "",
+        image: "",
       });
+    }
+  };
+
+  const handleAddonImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setAddonUploading(true);
+      const binaryUrl = await convertFileToBinaryDataUrl(file);
+      setAddonForm((prev) => ({ ...prev, image: binaryUrl }));
+    } catch (err) {
+      console.error("Failed to convert image to binary code", err);
+      alert("Failed to process image: " + err.message);
+    } finally {
+      setAddonUploading(false);
     }
   };
 
@@ -121,6 +146,7 @@ export default function AdminPage() {
     const formatted = {
       ...addonForm,
       price: Number(addonForm.price),
+      image: addonForm.image || "",
     };
     let updated;
     if (editingAddon === "new") {
@@ -138,6 +164,23 @@ export default function AdminPage() {
       const updated = addons.filter((a) => a.id !== id);
       setAddons(updated);
       saveAddons(updated);
+    }
+  };
+
+  // Cloud force sync state
+  const [cloudSyncing, setCloudSyncing] = useState(false);
+  const [cloudSyncSuccess, setCloudSyncSuccess] = useState(false);
+
+  const handleForceSyncCloud = async () => {
+    try {
+      setCloudSyncing(true);
+      await forcePushAllToCloud();
+      setCloudSyncSuccess(true);
+      setTimeout(() => setCloudSyncSuccess(false), 4000);
+    } catch (err) {
+      alert("Failed to sync to cloud: " + err.message);
+    } finally {
+      setCloudSyncing(false);
     }
   };
 
@@ -679,6 +722,28 @@ export default function AdminPage() {
               </div>
 
               <div className="admin-topbar-right">
+                <button
+                  type="button"
+                  onClick={handleForceSyncCloud}
+                  disabled={cloudSyncing}
+                  className="btn-secondary"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "8px 12px",
+                    fontSize: "0.82rem",
+                    color: cloudSyncSuccess ? "#059669" : "#0284c7",
+                    background: cloudSyncSuccess ? "rgba(16, 185, 129, 0.08)" : "rgba(2, 132, 199, 0.08)",
+                    borderColor: cloudSyncSuccess ? "rgba(16, 185, 129, 0.3)" : "rgba(2, 132, 199, 0.3)",
+                  }}
+                  title="Push all rooms, motos, addons & settings to cloud to sync across all phones & PCs"
+                >
+                  <RefreshCw size={14} style={{ animation: cloudSyncing ? "spin 1s linear infinite" : "none" }} />
+                  <span className="brand-text-block">
+                    {cloudSyncing ? "Syncing..." : cloudSyncSuccess ? "Cloud Synced!" : "Sync All Devices"}
+                  </span>
+                </button>
                 <Link
                   to="/dashboard"
                   className="btn-secondary"
@@ -1280,6 +1345,7 @@ export default function AdminPage() {
                         <table className="admin-table">
                           <thead>
                             <tr>
+                              <th style={{ width: "60px" }}>Photo</th>
                               <th>Service Name</th>
                               <th>Price (USD)</th>
                               <th>Billing Type</th>
@@ -1290,6 +1356,19 @@ export default function AdminPage() {
                           <tbody>
                             {addons.map((addon) => (
                               <tr key={addon.id}>
+                                <td style={{ width: "60px" }}>
+                                  {addon.image ? (
+                                    <img
+                                      src={addon.image}
+                                      alt=""
+                                      style={{ width: "46px", height: "46px", objectFit: "cover", borderRadius: "8px" }}
+                                    />
+                                  ) : (
+                                    <div style={{ width: "46px", height: "46px", borderRadius: "8px", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                      <PackageCheck size={20} color="#64748b" />
+                                    </div>
+                                  )}
+                                </td>
                                 <td>
                                   <div style={{ fontWeight: 700, color: "#0f172a" }}>{addon.name}</div>
                                 </td>
@@ -1391,6 +1470,51 @@ export default function AdminPage() {
                           placeholder="e.g. Sanitized helmet for passenger"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="date-label">Photo (Upload File converts to Binary Code, or paste URL)</label>
+                      <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "8px" }}>
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="Paste image URL or click Upload Photo to store binary code"
+                          value={addonForm.image || ""}
+                          onChange={(e) => setAddonForm({ ...addonForm, image: e.target.value })}
+                        />
+                        <label className="btn-secondary" style={{ cursor: "pointer", whiteSpace: "nowrap" }}>
+                          <UploadCloud size={16} />
+                          <span>{addonUploading ? "Converting..." : "Upload Photo (Binary)"}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: "none" }}
+                            onChange={handleAddonImageUpload}
+                            disabled={addonUploading}
+                          />
+                        </label>
+                      </div>
+                      {addonForm.image && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "10px" }}>
+                          <img
+                            src={addonForm.image}
+                            alt="Preview"
+                            style={{ width: "120px", height: "80px", objectFit: "cover", borderRadius: "8px", border: "1px solid var(--border-medium)" }}
+                          />
+                          <div>
+                            <span className="badge-emerald" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              <Check size={13} /> {addonForm.image.startsWith("data:") ? "Binary Code Stored" : "URL Configured"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setAddonForm({ ...addonForm, image: "" })}
+                              style={{ display: "block", marginTop: "6px", fontSize: "0.75rem", color: "#f43f5e", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+                            >
+                              Remove photo
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <button type="submit" className="btn-primary" style={{ alignSelf: "flex-end" }}>

@@ -15,7 +15,8 @@ export default function RoomSelector({
   const [previewImage, setPreviewImage] = useState(null);
   const [previewTitle, setPreviewTitle] = useState("");
 
-  const selectedCount = Object.keys(selectedRooms).length;
+  const selectedRoomList = rooms.filter((r) => Boolean(selectedRooms[r.id]));
+  const selectedCount = selectedRoomList.length;
   const totalRoomsQty = Object.values(selectedRooms).reduce((sum, item) => sum + (item?.qty || 0), 0);
 
   if (!rooms || rooms.length === 0) {
@@ -88,8 +89,8 @@ export default function RoomSelector({
         </div>
       </div>
 
-      {/* Quick Dropdown Picker to add/select room */}
-      <div className="select-dropdown-container" style={{ marginBottom: "14px" }}>
+      {/* Dropdown Picker to add room(s) */}
+      <div className="select-dropdown-container" style={{ marginBottom: selectedCount > 0 ? "14px" : "0" }}>
         <select
           className="select-dropdown"
           value=""
@@ -103,9 +104,9 @@ export default function RoomSelector({
           }}
         >
           <option value="">
-            {selectedCount > 0
-              ? `+ Add / Select another room type (${selectedCount} chosen)...`
-              : (t?.selectRoom || "Select room type to book (or check below)...")}
+            {selectedCount === 0
+              ? (t?.skipRoomTitle || "No Room (Moto Rental Only) — Click to choose room")
+              : `+ Add another room type (${selectedCount} selected)...`}
           </option>
           {rooms.map((room) => {
             const isSelected = Boolean(selectedRooms[room.id]);
@@ -122,114 +123,121 @@ export default function RoomSelector({
         </select>
       </div>
 
-      {/* List of Room Cards with Checkboxes & Multi-selection controls */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        {rooms.map((room) => {
-          const selection = selectedRooms[room.id];
-          const isSelected = Boolean(selection);
-          const qty = selection?.qty || 1;
-          const nights = selection?.nights || defaultNights;
-          const cost = room.pricePerNight * nights * qty;
+      {/* ONLY SHOW CHECKED/SELECTED ROOMS: IF NOT CHECKED, DON'T SHOW */}
+      {selectedRoomList.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
+          {selectedRoomList.map((room) => {
+            const selection = selectedRooms[room.id];
+            const qty = selection?.qty || 1;
+            const nights = selection?.nights || defaultNights;
+            const cost = room.pricePerNight * nights * qty;
 
-          return (
-            <div
-              key={room.id}
-              style={{
-                border: isSelected ? "2px solid #0f172a" : "1px solid #e2e8f0",
-                background: isSelected ? "#f8fafc" : "#ffffff",
-                borderRadius: "8px",
-                padding: "12px 14px",
-                transition: "all 0.15s ease",
-              }}
-            >
+            return (
               <div
+                key={room.id}
                 style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "12px",
+                  border: "2px solid #0f172a",
+                  background: "#f8fafc",
+                  borderRadius: "8px",
+                  padding: "12px 14px",
+                  transition: "all 0.15s ease",
+                  animation: "fadeIn 0.2s ease",
                 }}
               >
-                {/* Checkbox */}
-                <div
-                  onClick={() => onToggleRoom(room.id)}
-                  style={{
-                    width: "22px",
-                    height: "22px",
-                    borderRadius: "4px",
-                    border: isSelected ? "2px solid #0f172a" : "2px solid #cbd5e1",
-                    background: isSelected ? "#0f172a" : "#ffffff",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                    marginTop: "2px",
-                    transition: "all 0.15s ease",
-                  }}
-                  title={isSelected ? "Uncheck room" : "Check to book this room"}
-                >
-                  {isSelected && <Check size={14} color="#ffffff" strokeWidth={3} />}
-                </div>
-
-                {/* Photo Thumbnail */}
-                {room.image ? (
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                  {/* Checked indicator (click to uncheck/remove) */}
                   <div
-                    className="selected-thumbnail-wrap"
-                    style={{ width: "56px", height: "56px", borderRadius: "6px" }}
-                    onClick={() => {
-                      setPreviewImage(room.image);
-                      setPreviewTitle(room.name);
-                    }}
-                    title={t?.previewPhoto || "Preview Photo"}
-                  >
-                    <img src={room.image} alt={room.name} className="selected-thumbnail-img" />
-                    <div className="selected-thumbnail-overlay">
-                      <Eye size={14} color="#ffffff" />
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className="selected-thumbnail-wrap"
+                    onClick={() => onToggleRoom(room.id)}
                     style={{
-                      width: "56px",
-                      height: "56px",
-                      borderRadius: "6px",
-                      background: "#f1f5f9",
+                      width: "22px",
+                      height: "22px",
+                      borderRadius: "4px",
+                      border: "2px solid #0f172a",
+                      background: "#0f172a",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      marginTop: "2px",
+                      transition: "all 0.15s ease",
                     }}
+                    title="Click to uncheck / remove room"
                   >
-                    <Hotel size={18} color="#64748b" />
+                    <Check size={14} color="#ffffff" strokeWidth={3} />
                   </div>
-                )}
 
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    onClick={() => onToggleRoom(room.id)}
-                    style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "6px" }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>
-                        {room.name}
+                  {/* Photo Thumbnail */}
+                  {room.image ? (
+                    <div
+                      className="selected-thumbnail-wrap"
+                      style={{ width: "56px", height: "56px", borderRadius: "6px" }}
+                      onClick={() => {
+                        setPreviewImage(room.image);
+                        setPreviewTitle(room.name);
+                      }}
+                      title={t?.previewPhoto || "Preview Photo"}
+                    >
+                      <img src={room.image} alt={room.name} className="selected-thumbnail-img" />
+                      <div className="selected-thumbnail-overlay">
+                        <Eye size={14} color="#ffffff" />
                       </div>
-                      <div style={{ fontSize: "0.75rem", color: "#64748b", display: "flex", gap: "8px", marginTop: "2px", flexWrap: "wrap" }}>
-                        <span><Users size={12} style={{ display: "inline", verticalAlign: "middle" }} /> {room.capacity}</span>
-                        <span>•</span>
-                        <span>{room.bed}</span>
+                    </div>
+                  ) : (
+                    <div
+                      className="selected-thumbnail-wrap"
+                      style={{
+                        width: "56px",
+                        height: "56px",
+                        borderRadius: "6px",
+                        background: "#e2e8f0",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Hotel size={18} color="#64748b" />
+                    </div>
+                  )}
+
+                  {/* Room Details */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "6px" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>
+                          {room.name}
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", display: "flex", gap: "8px", marginTop: "2px", flexWrap: "wrap" }}>
+                          <span><Users size={12} style={{ display: "inline", verticalAlign: "middle" }} /> {room.capacity}</span>
+                          <span>•</span>
+                          <span>{room.bed}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "#0f172a", fontFamily: "var(--font-brand)" }}>
+                            ${room.pricePerNight} <span style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 500 }}>{t?.perNight || "/ night"}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onToggleRoom(room.id)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#94a3b8",
+                            padding: "4px",
+                          }}
+                          title="Remove room"
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
                     </div>
 
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "#0f172a", fontFamily: "var(--font-brand)" }}>
-                        ${room.pricePerNight} <span style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 500 }}>{t?.perNight || "/ night"}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* If checked: Show individual Quantity & Nights Counters */}
-                  {isSelected && (
+                    {/* Quantity & Nights Counters */}
                     <div
                       style={{
                         display: "flex",
@@ -242,7 +250,6 @@ export default function RoomSelector({
                         borderTop: "1px dashed #cbd5e1",
                       }}
                     >
-                      {/* Qty & Nights controls */}
                       <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
                         {/* Rooms quantity */}
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -300,13 +307,13 @@ export default function RoomSelector({
                         Subtotal: <span style={{ color: "#059669" }}>${cost}</span>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {previewImage && (
         <ImageModal

@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, Plus, Minus, PackageCheck, Sparkles, DollarSign } from "lucide-react";
+import { Check, Plus, Minus, PackageCheck, DollarSign, Sparkles, X } from "lucide-react";
 
 export default function AddonSelector({
   addons = [],
@@ -14,27 +14,45 @@ export default function AddonSelector({
   const paidAddons = addons.filter((a) => a.price > 0);
   const freeAddons = addons.filter((a) => a.price === 0);
 
-  const totalPaidSelectedCount = paidAddons.reduce((sum, item) => sum + (addonQuantities[item.id] || 0), 0);
-  const totalFreeSelectedCount = freeAddons.reduce((sum, item) => sum + (addonQuantities[item.id] || 0), 0);
-  const totalSelectedCount = totalPaidSelectedCount + totalFreeSelectedCount;
+  // Only the items that have quantity > 0 are considered checked/selected
+  const selectedAddonsList = addons.filter((a) => (addonQuantities[a.id] || 0) > 0);
+  const selectedCount = selectedAddonsList.length;
+  const totalItemsCount = selectedAddonsList.reduce(
+    (sum, item) => sum + (addonQuantities[item.id] || 0),
+    0
+  );
 
-  const handleQtyChange = (addonId, delta, defaultVal = 1) => {
+  const handleToggleAddon = (addonId) => {
+    const current = addonQuantities[addonId] || 0;
+    if (current > 0) {
+      onUpdateAddonQty(addonId, 0); // Uncheck & hide
+    } else {
+      const item = addons.find((a) => a.id === addonId);
+      onUpdateAddonQty(addonId, item?.defaultQty || 1); // Check & show
+    }
+  };
+
+  const handleQtyChange = (addonId, delta) => {
     const current = addonQuantities[addonId] || 0;
     const next = Math.max(0, current + delta);
-    if (onUpdateAddonQty) {
-      onUpdateAddonQty(addonId, next);
-    }
+    onUpdateAddonQty(addonId, next);
   };
 
   const handleDirectInput = (addonId, val) => {
     const parsed = Math.max(0, parseInt(val, 10) || 0);
-    if (onUpdateAddonQty) {
-      onUpdateAddonQty(addonId, parsed);
-    }
+    onUpdateAddonQty(addonId, parsed);
+  };
+
+  const handleClearAll = () => {
+    addons.forEach((a) => {
+      if ((addonQuantities[a.id] || 0) > 0) {
+        onUpdateAddonQty(a.id, 0);
+      }
+    });
   };
 
   return (
-    <div className={`step-section-card ${totalSelectedCount > 0 ? "has-selection" : ""}`}>
+    <div className={`step-section-card ${selectedCount > 0 ? "has-selection" : ""}`}>
       {/* Step Header */}
       <div className="step-header-row">
         <div className="step-title-group">
@@ -45,65 +63,130 @@ export default function AddonSelector({
               <span>{t?.step3Title || "Step 3: Extra Services & Inclusions"}</span>
             </h2>
             <div className="step-subtitle">
-              {totalSelectedCount > 0
-                ? `${totalSelectedCount} item(s) selected (${totalPaidSelectedCount} paid, ${totalFreeSelectedCount} free)`
-                : "Customize paid accessories (e.g. gloves) and free items (e.g. helmets)"}
+              {selectedCount > 0
+                ? `${totalItemsCount} item(s) selected across ${selectedCount} services`
+                : (t?.specifyQuantity || "Select optional paid accessories (e.g. gloves) or free gear (e.g. helmets)")}
             </div>
           </div>
         </div>
 
-        <span className={`step-tag-pill ${totalSelectedCount > 0 ? "selected" : "optional"}`}>
-          {totalSelectedCount > 0 ? (
-            <>
-              <Check size={12} />
-              <span>{totalSelectedCount} Selected</span>
-            </>
-          ) : (
-            <span>{t?.optionalTag || "Optional"}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {selectedCount > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="btn-secondary"
+              style={{ padding: "4px 8px", fontSize: "0.72rem", color: "#64748b" }}
+              title="Clear all extras"
+            >
+              <X size={12} />
+              <span>Clear Extras</span>
+            </button>
           )}
-        </span>
+          <span className={`step-tag-pill ${selectedCount > 0 ? "selected" : "optional"}`}>
+            {selectedCount > 0 ? (
+              <>
+                <Check size={12} />
+                <span>{selectedCount} Selected</span>
+              </>
+            ) : (
+              <span>{t?.optionalTag || "Optional"}</span>
+            )}
+          </span>
+        </div>
       </div>
 
-      {/* SECTION 1: PAID EXTRAS */}
-      <div style={{ marginBottom: "24px" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            marginBottom: "12px",
-            paddingBottom: "8px",
-            borderBottom: "1px solid #e2e8f0",
+      {/* Dropdown Selector to add/check extra services or free gear */}
+      <div className="select-dropdown-container" style={{ marginBottom: "10px" }}>
+        <select
+          className="select-dropdown"
+          value=""
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val === "__none__") {
+              handleClearAll();
+            } else if (val) {
+              handleToggleAddon(val);
+            }
           }}
         >
-          <div
-            style={{
-              width: "24px",
-              height: "24px",
-              borderRadius: "4px",
-              background: "#0f172a",
-              color: "#ffffff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <DollarSign size={14} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: "0.92rem", color: "#0f172a" }}>
-              {t?.paidServices || "Paid Extras & Add-ons"}
-            </div>
-            <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
-              Choose items and set the quantity you need (e.g. 3 pairs of riding gloves)
-            </div>
-          </div>
-        </div>
+          <option value="">
+            {selectedCount === 0
+              ? "+ Click to add extra service or free inclusions (e.g. Gloves, Helmets)..."
+              : `+ Add another service / gear (${selectedCount} selected)...`}
+          </option>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
-          {paidAddons.map((addon) => {
+          <optgroup label="── Paid Extras & Accessories ──">
+            {paidAddons.map((addon) => {
+              const isSelected = (addonQuantities[addon.id] || 0) > 0;
+              const unitPrice = addon.type === "per-day" ? addon.price * days : addon.price;
+              return (
+                <option key={addon.id} value={addon.id}>
+                  {isSelected ? `✓ [Selected: ×${addonQuantities[addon.id]}] ` : "+ "}
+                  {addon.name} — ${unitPrice} {addon.type === "per-day" ? `($${addon.price}/day)` : "each"}
+                </option>
+              );
+            })}
+          </optgroup>
+
+          <optgroup label="── Free Inclusions & Gear ──">
+            {freeAddons.map((addon) => {
+              const isSelected = (addonQuantities[addon.id] || 0) > 0;
+              return (
+                <option key={addon.id} value={addon.id}>
+                  {isSelected ? `✓ [Selected: ×${addonQuantities[addon.id]}] ` : "+ "}
+                  {addon.name} — FREE
+                </option>
+              );
+            })}
+          </optgroup>
+
+          {selectedCount > 0 && (
+            <option value="__none__">— Clear All Extra Services —</option>
+          )}
+        </select>
+      </div>
+
+      {/* Quick clickable chips for popular items */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: selectedCount > 0 ? "14px" : "0" }}>
+        {addons.map((addon) => {
+          const isSelected = (addonQuantities[addon.id] || 0) > 0;
+          return (
+            <button
+              key={addon.id}
+              type="button"
+              onClick={() => handleToggleAddon(addon.id)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "4px 10px",
+                borderRadius: "20px",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                border: isSelected ? "1px solid #0f172a" : "1px solid #e2e8f0",
+                background: isSelected ? "#0f172a" : "#ffffff",
+                color: isSelected ? "#ffffff" : "#334155",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {isSelected ? <Check size={12} color="#ffffff" /> : <Plus size={12} color="#64748b" />}
+              <span>{addon.name}</span>
+              <span style={{ opacity: 0.8, fontSize: "0.7rem" }}>
+                {addon.price === 0 ? "(Free)" : `($${addon.price})`}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ONLY SHOW CHECKED/SELECTED EXTRAS: IF NOT CHECKED, DON'T SHOW */}
+      {selectedAddonsList.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px" }}>
+          {selectedAddonsList.map((addon) => {
             const qty = addonQuantities[addon.id] || 0;
-            const isSelected = qty > 0;
+            const isFree = addon.price === 0;
             const unitPrice = addon.type === "per-day" ? addon.price * days : addon.price;
             const totalPrice = unitPrice * qty;
 
@@ -111,238 +194,167 @@ export default function AddonSelector({
               <div
                 key={addon.id}
                 style={{
-                  background: isSelected ? "#f8fafc" : "#ffffff",
-                  border: isSelected ? "2px solid #0f172a" : "1px solid #e2e8f0",
+                  border: "2px solid #0f172a",
+                  background: isFree ? "#f0fdf4" : "#f8fafc",
                   borderRadius: "8px",
                   padding: "12px 14px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  gap: "10px",
                   transition: "all 0.15s ease",
+                  animation: "fadeIn 0.2s ease",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#0f172a" }}>
-                      {addon.name}
-                    </div>
-                    {addon.description && (
-                      <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px", lineHeight: 1.3 }}>
-                        {addon.description}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                    <div style={{ fontWeight: 800, color: "#0f172a", fontFamily: "var(--font-brand)", fontSize: "0.95rem" }}>
-                      ${unitPrice}
-                    </div>
-                    <div style={{ fontSize: "0.7rem", color: "#64748b" }}>
-                      {addon.type === "per-day" ? `($${addon.price}/d × ${days}d)` : "each"}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quantity input & subtotal row */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingTop: "8px",
-                    borderTop: "1px dashed #e2e8f0",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569" }}>
-                      {t?.specifyQuantity || "Qty"}:
-                    </span>
-                    <div className="qty-counter" style={{ background: "#f1f5f9" }}>
-                      <button
-                        type="button"
-                        className="qty-btn"
-                        onClick={() => handleQtyChange(addon.id, -1)}
-                        disabled={qty === 0}
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <input
-                        type="number"
-                        min="0"
-                        max="99"
-                        value={qty}
-                        onChange={(e) => handleDirectInput(addon.id, e.target.value)}
-                        style={{
-                          width: "36px",
-                          textAlign: "center",
-                          border: "none",
-                          background: "transparent",
-                          fontWeight: 800,
-                          fontSize: "0.85rem",
-                          fontFamily: "var(--font-brand)",
-                          outline: "none",
-                        }}
-                      />
-                      <button
-                        type="button"
-                        className="qty-btn"
-                        onClick={() => handleQtyChange(addon.id, 1)}
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: "0.82rem", fontWeight: 800, color: isSelected ? "#0f172a" : "#94a3b8" }}>
-                    {isSelected ? `Total: $${totalPrice}` : "$0"}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* SECTION 2: FREE INCLUSIONS */}
-      <div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            marginBottom: "12px",
-            paddingBottom: "8px",
-            borderBottom: "1px solid #e2e8f0",
-          }}
-        >
-          <div
-            style={{
-              width: "24px",
-              height: "24px",
-              borderRadius: "4px",
-              background: "#059669",
-              color: "#ffffff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Sparkles size={14} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: "0.92rem", color: "#065f46" }}>
-              {t?.freeServices || "Free Inclusions & Amenities"}
-            </div>
-            <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
-              Input how many free helmets, phone holders, or maps you need for your trip
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
-          {freeAddons.map((addon) => {
-            const qty = addonQuantities[addon.id] !== undefined ? addonQuantities[addon.id] : (addon.defaultQty || 0);
-            const isSelected = qty > 0;
-
-            return (
-              <div
-                key={addon.id}
-                style={{
-                  background: isSelected ? "#ecfdf5" : "#ffffff",
-                  border: isSelected ? "2px solid #059669" : "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  padding: "12px 14px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  gap: "10px",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: "0.9rem", color: isSelected ? "#065f46" : "#0f172a" }}>
-                      {addon.name}
-                    </div>
-                    {addon.description && (
-                      <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px", lineHeight: 1.3 }}>
-                        {addon.description}
-                      </div>
-                    )}
-                  </div>
-                  <span
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                  {/* Checked indicator (click to uncheck/remove) */}
+                  <div
+                    onClick={() => handleToggleAddon(addon.id)}
                     style={{
-                      background: "#dcfce7",
-                      color: "#166534",
-                      fontSize: "0.72rem",
-                      fontWeight: 800,
-                      padding: "3px 8px",
+                      width: "22px",
+                      height: "22px",
                       borderRadius: "4px",
+                      border: "2px solid #0f172a",
+                      background: "#0f172a",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      marginTop: "2px",
+                      transition: "all 0.15s ease",
                     }}
+                    title="Click to uncheck / remove extra"
                   >
-                    {t?.free || "FREE"}
-                  </span>
-                </div>
-
-                {/* Free Quantity input row */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingTop: "8px",
-                    borderTop: "1px dashed #cbd5e1",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569" }}>
-                      {t?.specifyQuantity || "Input Qty"}:
-                    </span>
-                    <div className="qty-counter" style={{ background: isSelected ? "#dcfce7" : "#f1f5f9" }}>
-                      <button
-                        type="button"
-                        className="qty-btn"
-                        onClick={() => handleQtyChange(addon.id, -1)}
-                        disabled={qty === 0}
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <input
-                        type="number"
-                        min="0"
-                        max="10"
-                        value={qty}
-                        onChange={(e) => handleDirectInput(addon.id, e.target.value)}
-                        style={{
-                          width: "36px",
-                          textAlign: "center",
-                          border: "none",
-                          background: "transparent",
-                          fontWeight: 800,
-                          fontSize: "0.85rem",
-                          fontFamily: "var(--font-brand)",
-                          outline: "none",
-                        }}
-                      />
-                      <button
-                        type="button"
-                        className="qty-btn"
-                        onClick={() => handleQtyChange(addon.id, 1)}
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
+                    <Check size={14} color="#ffffff" strokeWidth={3} />
                   </div>
 
-                  <div style={{ fontSize: "0.78rem", fontWeight: 700, color: isSelected ? "#059669" : "#94a3b8" }}>
-                    {isSelected ? `✓ ${qty} Free Included` : "Not requested"}
+                  {/* Addon details */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "6px" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>
+                            {addon.name}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.68rem",
+                              fontWeight: 800,
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              background: isFree ? "#dcfce7" : "#f1f5f9",
+                              color: isFree ? "#15803d" : "#475569",
+                              border: isFree ? "1px solid #bbf7d0" : "1px solid #e2e8f0",
+                            }}
+                          >
+                            {isFree ? "FREE INCLUSION" : "PAID EXTRA"}
+                          </span>
+                        </div>
+                        {addon.description && (
+                          <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px", lineHeight: 1.3 }}>
+                            {addon.description}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div style={{ fontWeight: 800, color: isFree ? "#059669" : "#0f172a", fontFamily: "var(--font-brand)", fontSize: "1rem" }}>
+                            {isFree ? "FREE" : `$${unitPrice}`}
+                          </div>
+                          <div style={{ fontSize: "0.7rem", color: "#64748b" }}>
+                            {isFree ? "$0 USD" : addon.type === "per-day" ? `($${addon.price}/d × ${days}d)` : "each"}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAddon(addon.id)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#94a3b8",
+                            padding: "4px",
+                          }}
+                          title="Remove extra"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quantity counter & Line total */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: "10px",
+                        marginTop: "10px",
+                        paddingTop: "10px",
+                        borderTop: isFree ? "1px dashed #bbf7d0" : "1px dashed #cbd5e1",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569" }}>
+                          {t?.specifyQuantity || "Quantity"}:
+                        </span>
+                        <div className="qty-counter" style={{ background: "#ffffff" }}>
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            onClick={() => handleQtyChange(addon.id, -1)}
+                            disabled={qty <= 1}
+                            aria-label="Decrease quantity"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            max="99"
+                            value={qty}
+                            onChange={(e) => handleDirectInput(addon.id, e.target.value)}
+                            style={{
+                              width: "36px",
+                              textAlign: "center",
+                              border: "none",
+                              background: "transparent",
+                              fontWeight: 700,
+                              fontSize: "0.85rem",
+                              color: "#0f172a",
+                              outline: "none",
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            onClick={() => handleQtyChange(addon.id, 1)}
+                            aria-label="Increase quantity"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Subtotal / status */}
+                      <div>
+                        {isFree ? (
+                          <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#059669" }}>
+                            ✓ {qty} Free Included ($0)
+                          </span>
+                        ) : (
+                          <div style={{ fontSize: "0.82rem", fontWeight: 800, color: "#0f172a" }}>
+                            Subtotal: <span style={{ color: "#059669" }}>${totalPrice}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
+      )}
     </div>
   );
 }

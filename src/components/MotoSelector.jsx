@@ -15,7 +15,8 @@ export default function MotoSelector({
   const [previewImage, setPreviewImage] = useState(null);
   const [previewTitle, setPreviewTitle] = useState("");
 
-  const selectedCount = Object.keys(selectedMotos).length;
+  const selectedMotoList = motos.filter((m) => Boolean(selectedMotos[m.id]));
+  const selectedCount = selectedMotoList.length;
   const totalMotosQty = Object.values(selectedMotos).reduce((sum, item) => sum + (item?.qty || 0), 0);
 
   if (!motos || motos.length === 0) {
@@ -88,8 +89,8 @@ export default function MotoSelector({
         </div>
       </div>
 
-      {/* Quick Dropdown Picker to add/select moto */}
-      <div className="select-dropdown-container" style={{ marginBottom: "14px" }}>
+      {/* Dropdown Picker to add motorbike(s) */}
+      <div className="select-dropdown-container" style={{ marginBottom: selectedCount > 0 ? "14px" : "0" }}>
         <select
           className="select-dropdown"
           value=""
@@ -103,9 +104,9 @@ export default function MotoSelector({
           }}
         >
           <option value="">
-            {selectedCount > 0
-              ? `+ Add / Select another motorbike model (${selectedCount} chosen)...`
-              : (t?.selectMoto || "Select motorbike to rent (or check below)...")}
+            {selectedCount === 0
+              ? (t?.skipMotoTitle || "No Moto (Room Booking Only) — Click to choose motorbike")
+              : `+ Add another motorbike (${selectedCount} selected)...`}
           </option>
           {motos.map((moto) => {
             const isSelected = Boolean(selectedMotos[moto.id]);
@@ -122,119 +123,126 @@ export default function MotoSelector({
         </select>
       </div>
 
-      {/* List of Moto Cards with Checkboxes & Multi-selection controls */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        {motos.map((moto) => {
-          const selection = selectedMotos[moto.id];
-          const isSelected = Boolean(selection);
-          const qty = selection?.qty || 1;
-          const days = selection?.days || defaultDays;
-          const cost = moto.pricePerDay * days * qty;
+      {/* ONLY SHOW CHECKED/SELECTED MOTORBIKES: IF NOT CHECKED, DON'T SHOW */}
+      {selectedMotoList.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
+          {selectedMotoList.map((moto) => {
+            const selection = selectedMotos[moto.id];
+            const qty = selection?.qty || 1;
+            const days = selection?.days || defaultDays;
+            const cost = moto.pricePerDay * days * qty;
 
-          return (
-            <div
-              key={moto.id}
-              style={{
-                border: isSelected ? "2px solid #0f172a" : "1px solid #e2e8f0",
-                background: isSelected ? "#f8fafc" : "#ffffff",
-                borderRadius: "8px",
-                padding: "12px 14px",
-                transition: "all 0.15s ease",
-              }}
-            >
+            return (
               <div
+                key={moto.id}
                 style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "12px",
+                  border: "2px solid #0f172a",
+                  background: "#f8fafc",
+                  borderRadius: "8px",
+                  padding: "12px 14px",
+                  transition: "all 0.15s ease",
+                  animation: "fadeIn 0.2s ease",
                 }}
               >
-                {/* Checkbox */}
-                <div
-                  onClick={() => onToggleMoto(moto.id)}
-                  style={{
-                    width: "22px",
-                    height: "22px",
-                    borderRadius: "4px",
-                    border: isSelected ? "2px solid #0f172a" : "2px solid #cbd5e1",
-                    background: isSelected ? "#0f172a" : "#ffffff",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                    marginTop: "2px",
-                    transition: "all 0.15s ease",
-                  }}
-                  title={isSelected ? "Uncheck motorbike" : "Check to rent this motorbike"}
-                >
-                  {isSelected && <Check size={14} color="#ffffff" strokeWidth={3} />}
-                </div>
-
-                {/* Photo Thumbnail */}
-                {moto.image ? (
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                  {/* Checked indicator (click to uncheck/remove) */}
                   <div
-                    className="selected-thumbnail-wrap"
-                    style={{ width: "56px", height: "56px", borderRadius: "6px" }}
-                    onClick={() => {
-                      setPreviewImage(moto.image);
-                      setPreviewTitle(moto.name);
-                    }}
-                    title={t?.previewPhoto || "Preview Photo"}
-                  >
-                    <img src={moto.image} alt={moto.name} className="selected-thumbnail-img" />
-                    <div className="selected-thumbnail-overlay">
-                      <Eye size={14} color="#ffffff" />
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className="selected-thumbnail-wrap"
+                    onClick={() => onToggleMoto(moto.id)}
                     style={{
-                      width: "56px",
-                      height: "56px",
-                      borderRadius: "6px",
-                      background: "#f1f5f9",
+                      width: "22px",
+                      height: "22px",
+                      borderRadius: "4px",
+                      border: "2px solid #0f172a",
+                      background: "#0f172a",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      marginTop: "2px",
+                      transition: "all 0.15s ease",
                     }}
+                    title="Click to uncheck / remove motorbike"
                   >
-                    <Bike size={18} color="#64748b" />
+                    <Check size={14} color="#ffffff" strokeWidth={3} />
                   </div>
-                )}
 
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    onClick={() => onToggleMoto(moto.id)}
-                    style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "6px" }}
-                  >
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                        <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>
-                          {moto.name}
-                        </span>
-                        {moto.badge && (
-                          <span className="badge-emerald" style={{ fontSize: "0.68rem", padding: "2px 6px" }}>
-                            {moto.badge}
+                  {/* Photo Thumbnail */}
+                  {moto.image ? (
+                    <div
+                      className="selected-thumbnail-wrap"
+                      style={{ width: "56px", height: "56px", borderRadius: "6px" }}
+                      onClick={() => {
+                        setPreviewImage(moto.image);
+                        setPreviewTitle(moto.name);
+                      }}
+                      title={t?.previewPhoto || "Preview Photo"}
+                    >
+                      <img src={moto.image} alt={moto.name} className="selected-thumbnail-img" />
+                      <div className="selected-thumbnail-overlay">
+                        <Eye size={14} color="#ffffff" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="selected-thumbnail-wrap"
+                      style={{
+                        width: "56px",
+                        height: "56px",
+                        borderRadius: "6px",
+                        background: "#e2e8f0",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Bike size={18} color="#64748b" />
+                    </div>
+                  )}
+
+                  {/* Moto Details */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "6px" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>
+                            {moto.name}
                           </span>
-                        )}
+                          {moto.badge && (
+                            <span className="badge-emerald" style={{ fontSize: "0.68rem", padding: "2px 6px" }}>
+                              {moto.badge}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px" }}>
+                          Free {qty * 2} Helmets & {qty} Phone Mounts included
+                        </div>
                       </div>
-                      <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px" }}>
-                        Free {qty * 2} Helmets & {qty} Phone Mounts included
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "#0f172a", fontFamily: "var(--font-brand)" }}>
+                            ${moto.pricePerDay} <span style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 500 }}>{t?.perDay || "/ day"}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onToggleMoto(moto.id)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#94a3b8",
+                            padding: "4px",
+                          }}
+                          title="Remove motorbike"
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
                     </div>
 
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontWeight: 800, fontSize: "1.05rem", color: "#0f172a", fontFamily: "var(--font-brand)" }}>
-                        ${moto.pricePerDay} <span style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 500 }}>{t?.perDay || "/ day"}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* If checked: Show individual Quantity & Days Counters */}
-                  {isSelected && (
+                    {/* Quantity & Days Counters */}
                     <div
                       style={{
                         display: "flex",
@@ -247,7 +255,6 @@ export default function MotoSelector({
                         borderTop: "1px dashed #cbd5e1",
                       }}
                     >
-                      {/* Qty & Days controls */}
                       <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
                         {/* Moto quantity */}
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -305,13 +312,13 @@ export default function MotoSelector({
                         Subtotal: <span style={{ color: "#059669" }}>${cost}</span>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {previewImage && (
         <ImageModal

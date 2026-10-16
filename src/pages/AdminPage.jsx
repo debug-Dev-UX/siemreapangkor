@@ -30,6 +30,7 @@ import {
   saveSettings,
   saveCoupons,
   convertFileToBinaryDataUrl,
+  subscribeToCloudData,
 } from "../utils/storageHelper";
 
 export default function AdminPage() {
@@ -40,6 +41,19 @@ export default function AdminPage() {
   const [settings, setSettings] = useState(data.settings);
   const [inquiries, setInquiries] = useState(data.inquiries);
   const [coupons, setCoupons] = useState(data.coupons || []);
+
+  // Listen for real-time live updates from Cloud Firestore across all devices
+  useEffect(() => {
+    const unsubscribe = subscribeToCloudData((cloud) => {
+      if (cloud.rooms !== undefined) setRooms(cloud.rooms);
+      if (cloud.motos !== undefined) setMotos(cloud.motos);
+      if (cloud.addons !== undefined) setAddons(cloud.addons);
+      if (cloud.settings !== undefined) setSettings((prev) => ({ ...prev, ...cloud.settings }));
+      if (cloud.inquiries !== undefined) setInquiries(cloud.inquiries);
+      if (cloud.coupons !== undefined) setCoupons(cloud.coupons);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const [pinInput, setPinInput] = useState("");
   const [showPin, setShowPin] = useState(false);

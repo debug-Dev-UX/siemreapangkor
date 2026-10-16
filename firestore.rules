@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Open read and write access for Siemreap Angkor live synchronization
+    // This allows real-time updates for rooms, motorbikes, inquiries, coupons & settings across all devices.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -10,17 +10,30 @@ import {
   loadStoredData,
   saveInquiry,
   saveCoupons,
+  subscribeToCloudData,
 } from "../utils/storageHelper";
 import { translations } from "../utils/translations";
 import { CheckCircle2 } from "lucide-react";
 
 export default function DashboardPage() {
   const [data] = useState(() => loadStoredData());
-  const [rooms] = useState(data.rooms);
-  const [motos] = useState(data.motos);
-  const [settings] = useState(data.settings);
-  const [addons] = useState(data.addons || []);
+  const [rooms, setRooms] = useState(data.rooms);
+  const [motos, setMotos] = useState(data.motos);
+  const [settings, setSettings] = useState(data.settings);
+  const [addons, setAddons] = useState(data.addons || []);
   const [coupons, setCoupons] = useState(data.coupons || []);
+
+  // Listen for real-time live cloud data updates from Firestore across all devices
+  useEffect(() => {
+    const unsubscribe = subscribeToCloudData((cloud) => {
+      if (cloud.rooms !== undefined) setRooms(cloud.rooms);
+      if (cloud.motos !== undefined) setMotos(cloud.motos);
+      if (cloud.settings !== undefined) setSettings((prev) => ({ ...prev, ...cloud.settings }));
+      if (cloud.addons !== undefined) setAddons(cloud.addons);
+      if (cloud.coupons !== undefined) setCoupons(cloud.coupons);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Language state (default to khmer 'kh' on first visit, or read from localStorage)
   const [lang, setLang] = useState(() => {

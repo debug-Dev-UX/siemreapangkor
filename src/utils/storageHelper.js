@@ -1,14 +1,65 @@
-import { storage } from "../firebase";
+import { storage, db } from "../firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { INITIAL_ROOMS, INITIAL_MOTOS, INITIAL_SETTINGS, INITIAL_ADDONS, INITIAL_COUPONS } from "../data/initialData";
 
-// New clean keys without demo data
+// Local storage keys (used as offline cache)
 const ROOMS_KEY = "siemreap_angkor_rooms_clean_v4";
 const MOTOS_KEY = "siemreap_angkor_motos_clean_v4";
 const SETTINGS_KEY = "siemreap_angkor_settings_clean_v4";
 const ADDONS_KEY = "siemreap_angkor_addons_clean_v4";
 const INQUIRIES_KEY = "siemreap_angkor_inquiries_clean_v4";
 const COUPONS_KEY = "siemreap_angkor_coupons_clean_v4";
+
+// Firestore sync target
+const CLOUD_COLLECTION = "siemreap_angkor";
+const CLOUD_DOC = "app_data";
+
+// Background non-blocking sync to Cloud Firestore
+async function syncToCloud(partialData) {
+  if (!db) return;
+  try {
+    const docRef = doc(db, CLOUD_COLLECTION, CLOUD_DOC);
+    await setDoc(docRef, partialData, { merge: true });
+  } catch (err) {
+    console.warn("Firestore sync warning (check firestore.rules):", err);
+  }
+}
+
+// Real-time synchronization listener for all devices (phones, laptops, customers)
+export function subscribeToCloudData(onUpdate) {
+  if (!db) return () => {};
+  try {
+    const docRef = doc(db, CLOUD_COLLECTION, CLOUD_DOC);
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const cloudData = snapshot.data();
+          try {
+            if (cloudData.rooms !== undefined) localStorage.setItem(ROOMS_KEY, JSON.stringify(cloudData.rooms));
+            if (cloudData.motos !== undefined) localStorage.setItem(MOTOS_KEY, JSON.stringify(cloudData.motos));
+            if (cloudData.settings !== undefined) localStorage.setItem(SETTINGS_KEY, JSON.stringify(cloudData.settings));
+            if (cloudData.addons !== undefined) localStorage.setItem(ADDONS_KEY, JSON.stringify(cloudData.addons));
+            if (cloudData.coupons !== undefined) localStorage.setItem(COUPONS_KEY, JSON.stringify(cloudData.coupons));
+            if (cloudData.inquiries !== undefined) localStorage.setItem(INQUIRIES_KEY, JSON.stringify(cloudData.inquiries));
+          } catch (e) {}
+
+          if (typeof onUpdate === "function") {
+            onUpdate(cloudData);
+          }
+        }
+      },
+      (err) => {
+        console.warn("Firestore onSnapshot error (ensure firestore.rules allow read):", err);
+      }
+    );
+    return unsubscribe;
+  } catch (err) {
+    console.warn("Failed to subscribe to cloud data:", err);
+    return () => {};
+  }
+}
 
 export function loadStoredData() {
   // Clear any old demo/test keys if present
@@ -53,7 +104,6 @@ export function loadStoredData() {
     const storedSettings = localStorage.getItem(SETTINGS_KEY);
     if (storedSettings !== null) {
       const parsed = JSON.parse(storedSettings);
-      // Migrate if old placeholder username
       if (parsed.telegramUsername === "siemreapangkor") {
         settings = { ...INITIAL_SETTINGS, ...parsed, telegramUsername: INITIAL_SETTINGS.telegramUsername, phone: INITIAL_SETTINGS.phone, exchangeRateKHR: INITIAL_SETTINGS.exchangeRateKHR, address: INITIAL_SETTINGS.address };
       } else {
@@ -97,29 +147,47 @@ export function loadStoredData() {
 }
 
 export function saveRooms(rooms) {
-  localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
+  try {
+    localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
+  } catch (e) {}
+  syncToCloud({ rooms });
 }
 
 export function saveMotos(motos) {
-  localStorage.setItem(MOTOS_KEY, JSON.stringify(motos));
+  try {
+    localStorage.setItem(MOTOS_KEY, JSON.stringify(motos));
+  } catch (e) {}
+  syncToCloud({ motos });
 }
 
 export function saveSettings(settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (e) {}
+  syncToCloud({ settings });
 }
 
 export function saveAddons(addons) {
-  localStorage.setItem(ADDONS_KEY, JSON.stringify(addons));
+  try {
+    localStorage.setItem(ADDONS_KEY, JSON.stringify(addons));
+  } catch (e) {}
+  syncToCloud({ addons });
 }
 
 export function saveCoupons(coupons) {
-  localStorage.setItem(COUPONS_KEY, JSON.stringify(coupons));
+  try {
+    localStorage.setItem(COUPONS_KEY, JSON.stringify(coupons));
+  } catch (e) {}
+  syncToCloud({ coupons });
 }
 
 export function saveInquiry(inquiry) {
   const current = loadStoredData().inquiries;
   const updated = [inquiry, ...current.slice(0, 49)];
-  localStorage.setItem(INQUIRIES_KEY, JSON.stringify(updated));
+  try {
+    localStorage.setItem(INQUIRIES_KEY, JSON.stringify(updated));
+  } catch (e) {}
+  syncToCloud({ inquiries: updated });
   return updated;
 }
 
@@ -127,6 +195,7 @@ export function clearAllData() {
   localStorage.removeItem(ROOMS_KEY);
   localStorage.removeItem(MOTOS_KEY);
   localStorage.removeItem(INQUIRIES_KEY);
+  syncToCloud({ rooms: [], motos: [], inquiries: [] });
   return { rooms: [], motos: [], inquiries: [] };
 }
 
@@ -170,7 +239,6 @@ export async function convertFileToBinaryDataUrl(file, maxWidth = 1200, maxHeigh
 }
 
 export async function uploadImageToFirebase(file, folder = "images") {
-  // First convert to compressed binary data URL as requested for resilient local/cloud storage
   try {
     const binaryUrl = await convertFileToBinaryDataUrl(file);
     return { url: binaryUrl, error: null, isBinary: true };
@@ -179,4 +247,3 @@ export async function uploadImageToFirebase(file, folder = "images") {
     return { url: "", error: err.message, isBinary: false };
   }
 }
-

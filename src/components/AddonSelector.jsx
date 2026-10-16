@@ -1,5 +1,15 @@
 import React, { useState } from "react";
-import { Plus, Minus, PackageCheck, X, Eye } from "lucide-react";
+import {
+  Gift,
+  Sparkles,
+  ChevronDown,
+  X,
+  Eye,
+  Plus,
+  Minus,
+  Check,
+  PackageCheck,
+} from "lucide-react";
 import ImageModal from "./ImageModal";
 
 export default function AddonSelector({
@@ -7,22 +17,23 @@ export default function AddonSelector({
   addonQuantities = {},
   onUpdateAddonQty,
   days = 1,
+  lang = "kh",
   t,
 }) {
+  const [isFreeOpen, setIsFreeOpen] = useState(false);
+  const [isPaidOpen, setIsPaidOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [previewTitle, setPreviewTitle] = useState("");
 
   if (!addons || addons.length === 0) return null;
 
-  const paidAddons = addons.filter((a) => a.price > 0);
-  const freeAddons = addons.filter((a) => a.price === 0);
+  const freeAddons = addons.filter((a) => Number(a.price) === 0);
+  const paidAddons = addons.filter((a) => Number(a.price) > 0);
 
-  const selectedAddonsList = addons.filter((a) => (addonQuantities[a.id] || 0) > 0);
-  const selectedCount = selectedAddonsList.length;
-  const totalItemsCount = selectedAddonsList.reduce(
-    (sum, item) => sum + (addonQuantities[item.id] || 0),
-    0
-  );
+  const selectedFreeList = freeAddons.filter((a) => (addonQuantities[a.id] || 0) > 0);
+  const selectedPaidList = paidAddons.filter((a) => (addonQuantities[a.id] || 0) > 0);
+
+  const totalSelectedCount = selectedFreeList.length + selectedPaidList.length;
 
   const handleToggleAddon = (addonId) => {
     const current = addonQuantities[addonId] || 0;
@@ -48,9 +59,17 @@ export default function AddonSelector({
     });
   };
 
+  const handleClearCategory = (categoryItems) => {
+    categoryItems.forEach((a) => {
+      if ((addonQuantities[a.id] || 0) > 0) {
+        onUpdateAddonQty(a.id, 0);
+      }
+    });
+  };
+
   return (
     <section className="clean-section-card">
-      {/* Clean Header */}
+      {/* Clean Step 3 Header */}
       <div className="clean-section-header">
         <div className="clean-header-info">
           <div className="clean-icon-pill">
@@ -61,14 +80,14 @@ export default function AddonSelector({
               {t?.step3Title || "Step 3: Extra Services & Inclusions"}
             </h2>
             <p className="clean-section-desc">
-              {selectedCount > 0
-                ? `${totalItemsCount} item(s) selected across ${selectedCount} services`
-                : (t?.specifyQuantity || "Optional extras (e.g. gloves) or customized free gear (helmets)")}
+              {lang === "kh"
+                ? "ជ្រើសរើសសម្ភារហ្វ្រី និងសេវាកម្មបន្ថែមតាមតម្រូវការរបស់អ្នក"
+                : "Select free inclusions and optional extras tailored for your trip"}
             </p>
           </div>
         </div>
 
-        {selectedCount > 0 && (
+        {totalSelectedCount > 0 && (
           <button
             type="button"
             onClick={handleClearAll}
@@ -76,159 +95,487 @@ export default function AddonSelector({
             title="Clear all extras"
           >
             <X size={13} />
-            <span>Clear Extras</span>
+            <span>{lang === "kh" ? "លុបទាំងអស់" : "Clear All"}</span>
           </button>
         )}
       </div>
 
-      {/* Modern Clean Dropdown Picker */}
-      <div className="clean-select-wrapper">
-        <select
-          className="clean-select"
-          value=""
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val === "__none__") {
-              handleClearAll();
-            } else if (val) {
-              handleToggleAddon(val);
-            }
-          }}
-        >
-          <option value="">
-            {selectedCount === 0
-              ? "+ Add extra services or inclusions (e.g. Gloves, Helmets)..."
-              : `+ Add another service / gear (${selectedCount} selected)...`}
-          </option>
+      {/* ========================================================
+          SECTION 1: FREE INCLUSIONS & GEAR (100% FREE)
+          ======================================================== */}
+      {freeAddons.length > 0 && (
+        <div className="extra-category-block is-free-category">
+          <div className="extra-category-header">
+            <div className="extra-category-title-wrap">
+              <span className="extra-badge-pill free">🎁 100% FREE</span>
+              <h3 className="extra-category-title">
+                {lang === "kh" ? "សម្ភារ និងការផ្ដល់ជូនហ្វ្រី (Free Inclusions)" : "Free Inclusions & Equipment"}
+              </h3>
+            </div>
+            {selectedFreeList.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span className="extra-category-count">
+                  {selectedFreeList.length} {lang === "kh" ? "មុខបានរើស" : "selected"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleClearCategory(freeAddons)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#94a3b8",
+                    fontSize: "0.72rem",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  {lang === "kh" ? "លុប" : "Clear"}
+                </button>
+              </div>
+            )}
+          </div>
 
-          <optgroup label="── Paid Extras & Accessories ──">
-            {paidAddons.map((addon) => {
-              const isSelected = (addonQuantities[addon.id] || 0) > 0;
-              const unitPrice = addon.type === "per-day" ? addon.price * days : addon.price;
-              return (
-                <option key={addon.id} value={addon.id}>
-                  {isSelected ? `✓ [Selected: ×${addonQuantities[addon.id]}] ` : "+ "}
-                  {addon.name} — ${unitPrice} {addon.type === "per-day" ? `($${addon.price}/day)` : "each"}
-                </option>
-              );
-            })}
-          </optgroup>
+          {/* Custom Selection Trigger for Free Items */}
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              className={`custom-select-trigger-btn is-free-trigger ${isFreeOpen ? "is-active" : ""}`}
+              onClick={() => {
+                setIsFreeOpen(!isFreeOpen);
+                setIsPaidOpen(false);
+              }}
+            >
+              <div className="trigger-label-group">
+                <div className="trigger-icon-box free">
+                  <Gift size={16} />
+                </div>
+                <span className="trigger-text-main">
+                  {selectedFreeList.length === 0
+                    ? (lang === "kh"
+                        ? "+ ជ្រើសរើសសម្ភារហ្វ្រី (មួកសុវត្ថិភាព, ប្រដាប់ដាក់ទូរស័ព្ទ, ផែនទី)..."
+                        : "+ Select Free Gear (Helmets, Phone Mount, Map)...")
+                    : (lang === "kh"
+                        ? `+ បន្ថែមសម្ភារហ្វ្រីផ្សេងទៀត (${selectedFreeList.length} មុខបានរើស)...`
+                        : `+ Add more free items (${selectedFreeList.length} selected)...`)}
+                </span>
+              </div>
+              <ChevronDown size={18} className={`trigger-chevron ${isFreeOpen ? "is-open" : ""}`} />
+            </button>
 
-          <optgroup label="── Free Inclusions & Gear ──">
-            {freeAddons.map((addon) => {
-              const isSelected = (addonQuantities[addon.id] || 0) > 0;
-              return (
-                <option key={addon.id} value={addon.id}>
-                  {isSelected ? `✓ [Selected: ×${addonQuantities[addon.id]}] ` : "+ "}
-                  {addon.name} — FREE
-                </option>
-              );
-            })}
-          </optgroup>
+            {/* Custom Dropdown Menu for Free Items */}
+            {isFreeOpen && (
+              <div className="custom-dropdown-panel">
+                <div className="custom-dropdown-topbar">
+                  <span className="custom-dropdown-heading">
+                    {lang === "kh" ? "បញ្ជីសម្ភារហ្វ្រីឥតគិតថ្លៃ" : "Free Gear & Inclusions List"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsFreeOpen(false)}
+                    className="custom-dropdown-done-btn"
+                  >
+                    {lang === "kh" ? "រួចរាល់ ✓" : "Done ✓"}
+                  </button>
+                </div>
 
-          {selectedCount > 0 && (
-            <option value="__none__">— Clear All Extras —</option>
-          )}
-        </select>
-      </div>
+                <div className="custom-dropdown-items-list">
+                  {freeAddons.map((addon) => {
+                    const isSelected = (addonQuantities[addon.id] || 0) > 0;
+                    const qty = addonQuantities[addon.id] || 0;
 
-      {/* Selected Extras Cards */}
-      {selectedAddonsList.length > 0 && (
-        <div className="clean-items-grid">
-          {selectedAddonsList.map((addon) => {
-            const qty = addonQuantities[addon.id] || 0;
-            const isFree = addon.price === 0;
-            const unitPrice = addon.type === "per-day" ? addon.price * days : addon.price;
-            const cost = isFree ? 0 : unitPrice * qty;
+                    return (
+                      <div
+                        key={addon.id}
+                        className={`custom-dropdown-row ${isSelected ? "is-selected" : ""}`}
+                        onClick={() => handleToggleAddon(addon.id)}
+                      >
+                        {/* Thumbnail */}
+                        {addon.image ? (
+                          <div
+                            className="custom-row-thumb"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewImage(addon.image);
+                              setPreviewTitle(addon.name);
+                            }}
+                            title={lang === "kh" ? "ចុចដើម្បីមើលរូបធំ" : "Click to zoom"}
+                          >
+                            <img src={addon.image} alt={addon.name} />
+                          </div>
+                        ) : (
+                          <div className="custom-row-thumb-placeholder">
+                            <Gift size={20} color="#059669" />
+                          </div>
+                        )}
 
-            return (
-              <div key={addon.id} className={`clean-item-card ${isFree ? "clean-item-card-free" : ""}`}>
-                <div className="clean-item-top">
-                  {/* Photo or Icon */}
-                  {addon.image ? (
-                    <div
-                      className="clean-item-thumb"
-                      onClick={() => {
-                        setPreviewImage(addon.image);
-                        setPreviewTitle(addon.name);
-                      }}
-                      title="Preview Photo"
-                    >
-                      <img src={addon.image} alt={addon.name} />
-                      <div className="thumb-zoom-overlay">
-                        <Eye size={14} color="#ffffff" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="clean-item-thumb-placeholder">
-                      <PackageCheck size={20} color="#94a3b8" />
-                    </div>
-                  )}
-
-                  <div className="clean-item-details">
-                    <div className="clean-item-row-top">
-                      <div>
-                        <div className="clean-item-title">
-                          {addon.name}
-                          {isFree ? (
-                            <span className="clean-badge-free">FREE</span>
-                          ) : (
-                            <span className="clean-badge-paid">${unitPrice} {addon.type === "per-day" ? "/day" : "each"}</span>
+                        {/* Title & Description */}
+                        <div className="custom-row-info">
+                          <div className="custom-row-title">{addon.name}</div>
+                          {addon.description && (
+                            <div className="custom-row-desc">{addon.description}</div>
                           )}
                         </div>
-                        <div className="clean-item-meta">
-                          {addon.description || (isFree ? "Free inclusion item" : "Optional accessory")}
+
+                        {/* Price Badge & Add Button */}
+                        <div className="custom-row-right">
+                          <span className="custom-row-price free">FREE</span>
+                          <button
+                            type="button"
+                            className={`custom-add-toggle-btn ${isSelected ? "is-added-free" : ""}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleAddon(addon.id);
+                            }}
+                          >
+                            {isSelected ? (
+                              <>
+                                <Check size={12} />
+                                <span>{lang === "kh" ? `បានរើស (×${qty})` : `Added (×${qty})`}</span>
+                              </>
+                            ) : (
+                              <span>{lang === "kh" ? "+ ជ្រើសរើស" : "+ Add"}</span>
+                            )}
+                          </button>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => onUpdateAddonQty(addon.id, 0)}
-                        className="clean-remove-btn"
-                        title="Remove"
-                      >
-                        <X size={15} />
-                      </button>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
+              </div>
+            )}
+          </div>
 
-                {/* Minimalist Controls */}
-                <div className="clean-item-controls">
-                  <div className="clean-steppers-wrap">
-                    <div className="clean-stepper-group">
-                      <span className="stepper-label">{t?.quantity || "Quantity"}:</span>
-                      <div className="clean-stepper">
-                        <button
-                          type="button"
-                          className="stepper-btn"
-                          onClick={() => handleQtyChange(addon.id, -1)}
-                          disabled={qty <= 1}
+          {/* Selected Free Items Cards with Quantity Stepper */}
+          {selectedFreeList.length > 0 && (
+            <div className="clean-items-grid" style={{ marginTop: "14px" }}>
+              {selectedFreeList.map((addon) => {
+                const qty = addonQuantities[addon.id] || 1;
+
+                return (
+                  <div key={addon.id} className="clean-item-card clean-item-card-free">
+                    <div className="clean-item-top">
+                      {addon.image ? (
+                        <div
+                          className="clean-item-thumb"
+                          onClick={() => {
+                            setPreviewImage(addon.image);
+                            setPreviewTitle(addon.name);
+                          }}
+                          title="Preview Photo"
                         >
-                          <Minus size={12} />
-                        </button>
-                        <span className="stepper-val">{qty}</span>
-                        <button
-                          type="button"
-                          className="stepper-btn"
-                          onClick={() => handleQtyChange(addon.id, 1)}
-                        >
-                          <Plus size={12} />
-                        </button>
+                          <img src={addon.image} alt={addon.name} />
+                          <div className="thumb-zoom-overlay">
+                            <Eye size={14} color="#ffffff" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="clean-item-thumb-placeholder">
+                          <Gift size={20} color="#059669" />
+                        </div>
+                      )}
+
+                      <div className="clean-item-details">
+                        <div className="clean-item-row-top">
+                          <div>
+                            <div className="clean-item-title">
+                              {addon.name}
+                              <span className="clean-badge-free">FREE</span>
+                            </div>
+                            <div className="clean-item-meta">
+                              {addon.description || "Free inclusion item"}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateAddonQty(addon.id, 0)}
+                            className="clean-remove-btn"
+                            title="Remove"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="clean-item-controls">
+                      <div className="clean-steppers-wrap">
+                        <div className="clean-stepper-group">
+                          <span className="stepper-label">{t?.quantity || "Quantity"}:</span>
+                          <div className="clean-stepper">
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => handleQtyChange(addon.id, -1)}
+                              disabled={qty <= 1}
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span className="stepper-val">{qty}</span>
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => handleQtyChange(addon.id, 1)}
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="clean-subtotal-val">
+                        {lang === "kh" ? "តម្លៃសរុប:" : "Subtotal:"} <strong style={{ color: "#059669" }}>FREE</strong>
                       </div>
                     </div>
                   </div>
-
-                  <div className="clean-subtotal-val">
-                    Subtotal: <strong style={{ color: isFree ? "#059669" : "#0f172a" }}>{isFree ? "FREE" : `$${cost}`}</strong>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Photo Preview Modal */}
+      {/* ========================================================
+          SECTION 2: PAID EXTRAS & SERVICES (PRICE > 0)
+          ======================================================== */}
+      {paidAddons.length > 0 && (
+        <div className="extra-category-block" style={{ marginTop: "20px" }}>
+          <div className="extra-category-header">
+            <div className="extra-category-title-wrap">
+              <span className="extra-badge-pill paid">💎 Optional Extras</span>
+              <h3 className="extra-category-title">
+                {lang === "kh" ? "សេវាកម្ម និងសម្ភារបន្ថែមបង់ប្រាក់ (Paid Extras)" : "Paid Extra Services & Accessories"}
+              </h3>
+            </div>
+            {selectedPaidList.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span className="extra-category-count">
+                  {selectedPaidList.length} {lang === "kh" ? "មុខបានរើស" : "selected"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleClearCategory(paidAddons)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#94a3b8",
+                    fontSize: "0.72rem",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  {lang === "kh" ? "លុប" : "Clear"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Custom Selection Trigger for Paid Items */}
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              className={`custom-select-trigger-btn ${isPaidOpen ? "is-active" : ""}`}
+              onClick={() => {
+                setIsPaidOpen(!isPaidOpen);
+                setIsFreeOpen(false);
+              }}
+            >
+              <div className="trigger-label-group">
+                <div className="trigger-icon-box paid">
+                  <Sparkles size={16} />
+                </div>
+                <span className="trigger-text-main">
+                  {selectedPaidList.length === 0
+                    ? (lang === "kh"
+                        ? "+ ជ្រើសរើសសេវាបន្ថែម (ស្រោមដៃ, ឡានទទួលព្រលាន, SIM, សាំង)..."
+                        : "+ Select Paid Extras (Gloves, Airport Shuttle, SIM, Fuel)...")
+                    : (lang === "kh"
+                        ? `+ បន្ថែមសេវាផ្សេងទៀត (${selectedPaidList.length} មុខបានរើស)...`
+                        : `+ Add another extra (${selectedPaidList.length} selected)...`)}
+                </span>
+              </div>
+              <ChevronDown size={18} className={`trigger-chevron ${isPaidOpen ? "is-open" : ""}`} />
+            </button>
+
+            {/* Custom Dropdown Menu for Paid Items */}
+            {isPaidOpen && (
+              <div className="custom-dropdown-panel">
+                <div className="custom-dropdown-topbar">
+                  <span className="custom-dropdown-heading">
+                    {lang === "kh" ? "បញ្ជីសេវាកម្មបន្ថែមបង់ប្រាក់" : "Paid Extras & Services List"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsPaidOpen(false)}
+                    className="custom-dropdown-done-btn"
+                  >
+                    {lang === "kh" ? "រួចរាល់ ✓" : "Done ✓"}
+                  </button>
+                </div>
+
+                <div className="custom-dropdown-items-list">
+                  {paidAddons.map((addon) => {
+                    const isSelected = (addonQuantities[addon.id] || 0) > 0;
+                    const qty = addonQuantities[addon.id] || 0;
+                    const unitPrice = addon.type === "per-day" ? addon.price * days : addon.price;
+
+                    return (
+                      <div
+                        key={addon.id}
+                        className={`custom-dropdown-row ${isSelected ? "is-selected" : ""}`}
+                        onClick={() => handleToggleAddon(addon.id)}
+                      >
+                        {/* Thumbnail */}
+                        {addon.image ? (
+                          <div
+                            className="custom-row-thumb"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewImage(addon.image);
+                              setPreviewTitle(addon.name);
+                            }}
+                            title={lang === "kh" ? "ចុចដើម្បីមើលរូបធំ" : "Click to zoom"}
+                          >
+                            <img src={addon.image} alt={addon.name} />
+                          </div>
+                        ) : (
+                          <div className="custom-row-thumb-placeholder">
+                            <Sparkles size={20} color="#0284c7" />
+                          </div>
+                        )}
+
+                        {/* Title & Description */}
+                        <div className="custom-row-info">
+                          <div className="custom-row-title">{addon.name}</div>
+                          {addon.description && (
+                            <div className="custom-row-desc">{addon.description}</div>
+                          )}
+                        </div>
+
+                        {/* Price Badge & Add Button */}
+                        <div className="custom-row-right">
+                          <span className="custom-row-price">
+                            ${unitPrice} {addon.type === "per-day" ? `($${addon.price}/d)` : "each"}
+                          </span>
+                          <button
+                            type="button"
+                            className={`custom-add-toggle-btn ${isSelected ? "is-added" : ""}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleAddon(addon.id);
+                            }}
+                          >
+                            {isSelected ? (
+                              <>
+                                <Check size={12} />
+                                <span>{lang === "kh" ? `បានរើស (×${qty})` : `Added (×${qty})`}</span>
+                              </>
+                            ) : (
+                              <span>{lang === "kh" ? "+ ជ្រើសរើស" : "+ Add"}</span>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Selected Paid Items Cards with Quantity Stepper */}
+          {selectedPaidList.length > 0 && (
+            <div className="clean-items-grid" style={{ marginTop: "14px" }}>
+              {selectedPaidList.map((addon) => {
+                const qty = addonQuantities[addon.id] || 1;
+                const unitPrice = addon.type === "per-day" ? addon.price * days : addon.price;
+                const cost = unitPrice * qty;
+
+                return (
+                  <div key={addon.id} className="clean-item-card">
+                    <div className="clean-item-top">
+                      {addon.image ? (
+                        <div
+                          className="clean-item-thumb"
+                          onClick={() => {
+                            setPreviewImage(addon.image);
+                            setPreviewTitle(addon.name);
+                          }}
+                          title="Preview Photo"
+                        >
+                          <img src={addon.image} alt={addon.name} />
+                          <div className="thumb-zoom-overlay">
+                            <Eye size={14} color="#ffffff" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="clean-item-thumb-placeholder">
+                          <Sparkles size={20} color="#0284c7" />
+                        </div>
+                      )}
+
+                      <div className="clean-item-details">
+                        <div className="clean-item-row-top">
+                          <div>
+                            <div className="clean-item-title">
+                              {addon.name}
+                              <span className="clean-badge-paid">
+                                ${unitPrice} {addon.type === "per-day" ? "/day" : "each"}
+                              </span>
+                            </div>
+                            <div className="clean-item-meta">
+                              {addon.description || "Optional accessory"}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateAddonQty(addon.id, 0)}
+                            className="clean-remove-btn"
+                            title="Remove"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="clean-item-controls">
+                      <div className="clean-steppers-wrap">
+                        <div className="clean-stepper-group">
+                          <span className="stepper-label">{t?.quantity || "Quantity"}:</span>
+                          <div className="clean-stepper">
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => handleQtyChange(addon.id, -1)}
+                              disabled={qty <= 1}
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span className="stepper-val">{qty}</span>
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => handleQtyChange(addon.id, 1)}
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="clean-subtotal-val">
+                        {lang === "kh" ? "តម្លៃសរុប:" : "Subtotal:"} <strong>${cost}</strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Full-Screen Photo Preview Modal */}
       <ImageModal
         isOpen={Boolean(previewImage)}
         imageUrl={previewImage}

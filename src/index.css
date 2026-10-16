@@ -42,17 +42,24 @@
   padding: 0;
 }
 
-html, body {
+html {
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
   font-family: var(--font-body);
   background-color: var(--bg-primary);
   color: var(--text-main);
   min-height: 100vh;
   line-height: 1.5;
-  touch-action: pan-x pan-y;
-  -webkit-text-size-adjust: 100%;
-  overscroll-behavior-y: none;
+  touch-action: manipulation;
   letter-spacing: -0.01em;
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

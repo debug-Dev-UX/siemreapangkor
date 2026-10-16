@@ -27,8 +27,9 @@ export default function AddonSelector({
 
   if (!addons || addons.length === 0) return null;
 
-  const freeAddons = addons.filter((a) => Number(a.price) === 0);
-  const paidAddons = addons.filter((a) => Number(a.price) > 0);
+  const isFreeItem = (a) => a.type === "free" || Number(a.price) === 0;
+  const freeAddons = addons.filter(isFreeItem);
+  const paidAddons = addons.filter((a) => !isFreeItem(a));
 
   const selectedFreeList = freeAddons.filter((a) => (addonQuantities[a.id] || 0) > 0);
   const selectedPaidList = paidAddons.filter((a) => (addonQuantities[a.id] || 0) > 0);

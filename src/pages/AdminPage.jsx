@@ -23,6 +23,9 @@ import {
   Cloud,
   CloudUpload,
   RefreshCw,
+  Search,
+  Filter,
+  ArrowUpDown,
 } from "lucide-react";
 import logoImg from "../assets/logo.png";
 import {
@@ -61,10 +64,35 @@ export default function AdminPage() {
 
   const [pinInput, setPinInput] = useState("");
   const [showPin, setShowPin] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    try {
+      return localStorage.getItem("siemreap_admin_authenticated") === "true";
+    } catch (e) {
+      return false;
+    }
+  });
   const [pinError, setPinError] = useState("");
   const [activeTab, setActiveTab] = useState("rooms"); // rooms, motos, addons, coupons, settings, inquiries
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Sorting & Filtering States across inventory & coupons
+  const [couponFilterStatus, setCouponFilterStatus] = useState("all");
+  const [couponSort, setCouponSort] = useState("expire-asc");
+  const [couponSearch, setCouponSearch] = useState("");
+
+  const [addonFilterType, setAddonFilterType] = useState("all");
+  const [addonSort, setAddonSort] = useState("name-asc");
+  const [addonSearch, setAddonSearch] = useState("");
+
+  const [roomCategoryFilter, setRoomCategoryFilter] = useState("all");
+  const [roomSort, setRoomSort] = useState("price-asc");
+  const [roomSearch, setRoomSearch] = useState("");
+
+  const [motoSort, setMotoSort] = useState("price-asc");
+  const [motoSearch, setMotoSearch] = useState("");
+
+  const [inquiryFilter, setInquiryFilter] = useState("all");
+  const [inquirySort, setInquirySort] = useState("newest");
 
   // Room Edit/Add state
   const [editingRoom, setEditingRoom] = useState(null);
@@ -143,9 +171,11 @@ export default function AdminPage() {
 
   const handleSaveAddon = (e) => {
     e.preventDefault();
+    const isFree = addonForm.type === "free" || Number(addonForm.price) === 0;
     const formatted = {
       ...addonForm,
-      price: Number(addonForm.price),
+      price: isFree ? 0 : Number(addonForm.price),
+      type: isFree ? "free" : addonForm.type,
       image: addonForm.image || "",
     };
     let updated;
@@ -266,9 +296,20 @@ export default function AdminPage() {
       setIsAuthenticated(true);
       setPinError("");
       setSettingsForm({ ...settings });
+      try {
+        localStorage.setItem("siemreap_admin_authenticated", "true");
+      } catch (e) {}
     } else {
       setPinError("Incorrect PIN. Please try again.");
     }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setPinInput("");
+    try {
+      localStorage.removeItem("siemreap_admin_authenticated");
+    } catch (e) {}
   };
 
   // ROOM ACTIONS
@@ -436,6 +477,119 @@ export default function AdminPage() {
       setTimeout(() => setSaveSuccessMsg(""), 3000);
     }
   };
+
+  // Filtered & Sorted Coupons (Status filter & Expiration sort)
+  const displayedCoupons = coupons
+    .filter((coupon) => {
+      const today = new Date().toISOString().split("T")[0];
+      const isExpired = coupon.expireDate && today > coupon.expireDate;
+      const usageLimit = Number(coupon.usageLimit) || 10;
+      const usedCount = Number(coupon.usedCount) || 0;
+      const isLimitReached = usedCount >= usageLimit;
+      const isActive = !isExpired && !isLimitReached;
+
+      if (couponFilterStatus === "active" && !isActive) return false;
+      if (couponFilterStatus === "expired" && !isExpired) return false;
+      if (couponFilterStatus === "limit" && !isLimitReached) return false;
+
+      if (couponSearch.trim()) {
+        const q = couponSearch.toLowerCase();
+        const matchCode = coupon.code?.toLowerCase().includes(q);
+        const matchDesc = coupon.description?.toLowerCase().includes(q);
+        if (!matchCode && !matchDesc) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (couponSort === "expire-asc") {
+        return (a.expireDate || "9999") > (b.expireDate || "9999") ? 1 : -1;
+      }
+      if (couponSort === "expire-desc") {
+        return (a.expireDate || "0000") < (b.expireDate || "0000") ? 1 : -1;
+      }
+      if (couponSort === "usage-desc") {
+        return (Number(b.usedCount) || 0) - (Number(a.usedCount) || 0);
+      }
+      if (couponSort === "usage-asc") {
+        return (Number(a.usedCount) || 0) - (Number(b.usedCount) || 0);
+      }
+      if (couponSort === "discount-desc") {
+        return (Number(b.discountValue) || 0) - (Number(a.discountValue) || 0);
+      }
+      if (couponSort === "code-asc") {
+        return (a.code || "").localeCompare(b.code || "");
+      }
+      return 0;
+    });
+
+  // Filtered & Sorted Add-ons
+  const displayedAddons = addons
+    .filter((addon) => {
+      const isFree = addon.type === "free" || Number(addon.price) === 0;
+      if (addonFilterType === "free" && !isFree) return false;
+      if (addonFilterType === "paid" && isFree) return false;
+      if (addonSearch.trim()) {
+        const q = addonSearch.toLowerCase();
+        const matchName = addon.name?.toLowerCase().includes(q);
+        const matchDesc = addon.description?.toLowerCase().includes(q);
+        if (!matchName && !matchDesc) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (addonSort === "price-asc") return Number(a.price) - Number(b.price);
+      if (addonSort === "price-desc") return Number(b.price) - Number(a.price);
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+  // Filtered & Sorted Rooms
+  const displayedRooms = rooms
+    .filter((room) => {
+      if (roomCategoryFilter !== "all" && room.category !== roomCategoryFilter) return false;
+      if (roomSearch.trim()) {
+        const q = roomSearch.toLowerCase();
+        const matchName = room.name?.toLowerCase().includes(q);
+        const matchDesc = room.description?.toLowerCase().includes(q);
+        if (!matchName && !matchDesc) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (roomSort === "price-asc") return Number(a.pricePerNight) - Number(b.pricePerNight);
+      if (roomSort === "price-desc") return Number(b.pricePerNight) - Number(a.pricePerNight);
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+  // Filtered & Sorted Motos
+  const displayedMotos = motos
+    .filter((moto) => {
+      if (motoSearch.trim()) {
+        const q = motoSearch.toLowerCase();
+        const matchName = moto.name?.toLowerCase().includes(q);
+        const matchFeatures = moto.features?.toLowerCase().includes(q);
+        if (!matchName && !matchFeatures) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (motoSort === "price-asc") return Number(a.pricePerDay) - Number(b.pricePerDay);
+      if (motoSort === "price-desc") return Number(b.pricePerDay) - Number(a.pricePerDay);
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+  // Filtered & Sorted Inquiries
+  const displayedInquiries = inquiries
+    .filter((inq) => {
+      if (inquiryFilter === "with-room" && !inq.roomName) return false;
+      if (inquiryFilter === "with-moto" && !inq.motoName) return false;
+      if (inquiryFilter === "with-extra" && (!inq.addons || inq.addons.length === 0)) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (inquirySort === "oldest") return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      if (inquirySort === "total-desc") return Number(b.totalUSD || 0) - Number(a.totalUSD || 0);
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
@@ -676,7 +830,7 @@ export default function AdminPage() {
 
               <button
                 className="btn-secondary"
-                onClick={() => setIsAuthenticated(false)}
+                onClick={handleLogout}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -761,7 +915,7 @@ export default function AdminPage() {
                 </Link>
                 <button
                   className="btn-secondary"
-                  onClick={() => setIsAuthenticated(false)}
+                  onClick={handleLogout}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -840,9 +994,57 @@ export default function AdminPage() {
                       </button>
                     </div>
 
-                    {rooms.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b", border: "1px dashed rgba(255,255,255,0.1)", borderRadius: "12px" }}>
-                        No rooms created yet. Click "Add New Room" above to list your rooms!
+                    {/* Filter & Sort Bar */}
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", background: "#f8fafc", padding: "10px 14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                      <div style={{ position: "relative", minWidth: "180px", flex: "1" }}>
+                        <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                        <input
+                          type="text"
+                          placeholder="Search room name or desc..."
+                          className="input-field"
+                          style={{ paddingLeft: "30px", paddingRight: "10px", height: "36px", fontSize: "0.82rem" }}
+                          value={roomSearch}
+                          onChange={(e) => setRoomSearch(e.target.value)}
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <Filter size={14} color="#64748b" />
+                        <select
+                          className="input-field"
+                          style={{ height: "36px", padding: "4px 8px", fontSize: "0.82rem", width: "auto" }}
+                          value={roomCategoryFilter}
+                          onChange={(e) => setRoomCategoryFilter(e.target.value)}
+                        >
+                          <option value="all">All Categories ({rooms.length})</option>
+                          {Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).map((cat) => (
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <ArrowUpDown size={14} color="#64748b" />
+                        <select
+                          className="input-field"
+                          style={{ height: "36px", padding: "4px 8px", fontSize: "0.82rem", width: "auto" }}
+                          value={roomSort}
+                          onChange={(e) => setRoomSort(e.target.value)}
+                        >
+                          <option value="price-asc">Price: Low to High</option>
+                          <option value="price-desc">Price: High to Low</option>
+                          <option value="name-asc">Name: A to Z</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {displayedRooms.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b", border: "1px dashed #cbd5e1", borderRadius: "8px" }}>
+                        {rooms.length === 0
+                          ? "No rooms created yet. Click \"Add New Room\" above to list your rooms!"
+                          : "No rooms match your filter criteria. Try clearing search or selecting \"All Categories\"."}
                       </div>
                     ) : (
                       <div style={{ overflowX: "auto" }}>
@@ -858,7 +1060,7 @@ export default function AdminPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {rooms.map((room) => (
+                            {displayedRooms.map((room) => (
                               <tr key={room.id}>
                                 <td>
                                   {room.image ? (
@@ -1110,9 +1312,40 @@ export default function AdminPage() {
                       </button>
                     </div>
 
-                    {motos.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b", border: "1px dashed rgba(255,255,255,0.1)", borderRadius: "12px" }}>
-                        No motorbikes created yet. Click "Add New Motorbike" above to list your scooters!
+                    {/* Filter & Sort Bar */}
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", background: "#f8fafc", padding: "10px 14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                      <div style={{ position: "relative", minWidth: "180px", flex: "1" }}>
+                        <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                        <input
+                          type="text"
+                          placeholder="Search moto name or features..."
+                          className="input-field"
+                          style={{ paddingLeft: "30px", paddingRight: "10px", height: "36px", fontSize: "0.82rem" }}
+                          value={motoSearch}
+                          onChange={(e) => setMotoSearch(e.target.value)}
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <ArrowUpDown size={14} color="#64748b" />
+                        <select
+                          className="input-field"
+                          style={{ height: "36px", padding: "4px 8px", fontSize: "0.82rem", width: "auto" }}
+                          value={motoSort}
+                          onChange={(e) => setMotoSort(e.target.value)}
+                        >
+                          <option value="price-asc">Price: Low to High</option>
+                          <option value="price-desc">Price: High to Low</option>
+                          <option value="name-asc">Name: A to Z</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {displayedMotos.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b", border: "1px dashed #cbd5e1", borderRadius: "8px" }}>
+                        {motos.length === 0
+                          ? "No motorbikes created yet. Click \"Add New Motorbike\" above to list your scooters!"
+                          : "No motorbikes match your search criteria. Try clearing search."}
                       </div>
                     ) : (
                       <div style={{ overflowX: "auto" }}>
@@ -1127,7 +1360,7 @@ export default function AdminPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {motos.map((moto) => (
+                            {displayedMotos.map((moto) => (
                               <tr key={moto.id}>
                                 <td>
                                   {moto.image ? (
@@ -1326,19 +1559,69 @@ export default function AdminPage() {
               <div>
                 {!editingAddon ? (
                   <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                      <span style={{ fontSize: "0.9rem", color: "#64748b" }}>
-                        {addons.length} {addons.length === 1 ? "service" : "services"} configured for Step 3
-                      </span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#0f172a" }}>
+                          Add-on Services (Step 3)
+                        </div>
+                        <div style={{ fontSize: "0.82rem", color: "#64748b" }}>
+                          Manage free inclusions and paid accessories. Filter by Free/Paid or sort by price.
+                        </div>
+                      </div>
                       <button className="btn-primary" onClick={() => handleOpenAddonForm(null)}>
                         <Plus size={16} />
                         <span>Add New Add-on</span>
                       </button>
                     </div>
 
-                    {addons.length === 0 ? (
+                    {/* Filter & Sort Bar */}
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", background: "#f8fafc", padding: "10px 14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                      <div style={{ position: "relative", minWidth: "180px", flex: "1" }}>
+                        <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                        <input
+                          type="text"
+                          placeholder="Search service name or desc..."
+                          className="input-field"
+                          style={{ paddingLeft: "30px", paddingRight: "10px", height: "36px", fontSize: "0.82rem" }}
+                          value={addonSearch}
+                          onChange={(e) => setAddonSearch(e.target.value)}
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <Filter size={14} color="#64748b" />
+                        <select
+                          className="input-field"
+                          style={{ height: "36px", padding: "4px 8px", fontSize: "0.82rem", width: "auto" }}
+                          value={addonFilterType}
+                          onChange={(e) => setAddonFilterType(e.target.value)}
+                        >
+                          <option value="all">All Types ({addons.length})</option>
+                          <option value="free">Free Inclusions Only</option>
+                          <option value="paid">Paid Extras Only</option>
+                        </select>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <ArrowUpDown size={14} color="#64748b" />
+                        <select
+                          className="input-field"
+                          style={{ height: "36px", padding: "4px 8px", fontSize: "0.82rem", width: "auto" }}
+                          value={addonSort}
+                          onChange={(e) => setAddonSort(e.target.value)}
+                        >
+                          <option value="name-asc">Name: A to Z</option>
+                          <option value="price-asc">Price: Low to High</option>
+                          <option value="price-desc">Price: High to Low</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {displayedAddons.length === 0 ? (
                       <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b", border: "1px dashed var(--border-medium)", borderRadius: "8px" }}>
-                        No add-on services configured. Click "Add New Add-on" above to create extra services like Airport Shuttle, Extra Helmets, SIM Card, etc.!
+                        {addons.length === 0
+                          ? "No add-on services configured. Click \"Add New Add-on\" above to create extra services like Airport Shuttle, Extra Helmets, SIM Card, etc.!"
+                          : "No services match your filter criteria. Try selecting \"All Types\" or clearing search."}
                       </div>
                     ) : (
                       <div style={{ overflowX: "auto" }}>
@@ -1354,7 +1637,7 @@ export default function AdminPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {addons.map((addon) => (
+                            {displayedAddons.map((addon) => (
                               <tr key={addon.id}>
                                 <td style={{ width: "60px" }}>
                                   {addon.image ? (
@@ -1452,11 +1735,18 @@ export default function AdminPage() {
                         <select
                           className="input-field"
                           value={addonForm.type}
-                          onChange={(e) => setAddonForm({ ...addonForm, type: e.target.value })}
+                          onChange={(e) => {
+                            const newType = e.target.value;
+                            setAddonForm({
+                              ...addonForm,
+                              type: newType,
+                              price: newType === "free" ? 0 : (Number(addonForm.price) === 0 ? 5 : addonForm.price),
+                            });
+                          }}
                         >
                           <option value="one-time">One-Time Fee (e.g. Airport Shuttle, SIM card)</option>
                           <option value="per-day">Per Day (multiplied by rental days, e.g. Extra Helmet)</option>
-                          <option value="free">Free Inclusions (e.g. Temple Route Map)</option>
+                          <option value="free">Free Inclusions (e.g. Temple Route Map, Free Helmet)</option>
                         </select>
                       </div>
 
@@ -1536,7 +1826,7 @@ export default function AdminPage() {
                           Coupons & Discount Codes
                         </div>
                         <div style={{ fontSize: "0.82rem", color: "#64748b" }}>
-                          Create promo codes with expiration dates. Customers can enter them for instant discounts.
+                          Filter by active/expired status and sort by expiration or usage for fast management.
                         </div>
                       </div>
                       <button className="btn-primary" onClick={() => handleOpenCouponForm(null)}>
@@ -1545,9 +1835,58 @@ export default function AdminPage() {
                       </button>
                     </div>
 
-                    {coupons.length === 0 ? (
+                    {/* Filter & Sort Bar */}
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", background: "#f8fafc", padding: "10px 14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                      <div style={{ position: "relative", minWidth: "180px", flex: "1" }}>
+                        <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                        <input
+                          type="text"
+                          placeholder="Search code or desc..."
+                          className="input-field"
+                          style={{ paddingLeft: "30px", paddingRight: "10px", height: "36px", fontSize: "0.82rem" }}
+                          value={couponSearch}
+                          onChange={(e) => setCouponSearch(e.target.value)}
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <Filter size={14} color="#64748b" />
+                        <select
+                          className="input-field"
+                          style={{ height: "36px", padding: "4px 8px", fontSize: "0.82rem", width: "auto" }}
+                          value={couponFilterStatus}
+                          onChange={(e) => setCouponFilterStatus(e.target.value)}
+                        >
+                          <option value="all">All Statuses ({coupons.length})</option>
+                          <option value="active">Active Only</option>
+                          <option value="expired">Expired Only</option>
+                          <option value="limit">Limit Reached</option>
+                        </select>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <ArrowUpDown size={14} color="#64748b" />
+                        <select
+                          className="input-field"
+                          style={{ height: "36px", padding: "4px 8px", fontSize: "0.82rem", width: "auto" }}
+                          value={couponSort}
+                          onChange={(e) => setCouponSort(e.target.value)}
+                        >
+                          <option value="expire-asc">Exp: Soonest First</option>
+                          <option value="expire-desc">Exp: Furthest First</option>
+                          <option value="usage-desc">Usage: Most Used</option>
+                          <option value="usage-asc">Usage: Least Used</option>
+                          <option value="discount-desc">Discount: High to Low</option>
+                          <option value="code-asc">Code: A to Z</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {displayedCoupons.length === 0 ? (
                       <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b", border: "1px dashed #cbd5e1", borderRadius: "8px" }}>
-                        No coupons created yet. Click "Add New Coupon" above to create your first promo code!
+                        {coupons.length === 0
+                          ? "No coupons created yet. Click \"Add New Coupon\" above to create your first promo code!"
+                          : "No coupons match your filter criteria. Try selecting \"All Statuses\" or clearing search."}
                       </div>
                     ) : (
                       <div style={{ overflowX: "auto" }}>
@@ -1564,7 +1903,7 @@ export default function AdminPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {coupons.map((coupon) => {
+                            {displayedCoupons.map((coupon) => {
                               const today = new Date().toISOString().split("T")[0];
                               const isExpired = coupon.expireDate && today > coupon.expireDate;
                               const usageLimit = Number(coupon.usageLimit) || 10;
@@ -1868,44 +2207,91 @@ export default function AdminPage() {
             {/* TAB 4: INQUIRIES LOG */}
             {activeTab === "inquiries" && (
               <div>
-                {inquiries.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b" }}>
-                    No recent inquiries recorded yet. When users submit quotes on /dashboard, they will appear here.
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#0f172a" }}>
+                      Customer Inquiry Logs
+                    </div>
+                    <div style={{ fontSize: "0.82rem", color: "#64748b" }}>
+                      Review incoming booking quotes, filtered by package components and sorted by date or value.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter & Sort Bar */}
+                <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", background: "#f8fafc", padding: "10px 14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Filter size={14} color="#64748b" />
+                    <select
+                      className="input-field"
+                      style={{ height: "36px", padding: "4px 8px", fontSize: "0.82rem", width: "auto" }}
+                      value={inquiryFilter}
+                      onChange={(e) => setInquiryFilter(e.target.value)}
+                    >
+                      <option value="all">All Inquiries ({inquiries.length})</option>
+                      <option value="with-room">With Room Booking</option>
+                      <option value="with-moto">With Motorbike Booking</option>
+                      <option value="with-extra">With Extra Services</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <ArrowUpDown size={14} color="#64748b" />
+                    <select
+                      className="input-field"
+                      style={{ height: "36px", padding: "4px 8px", fontSize: "0.82rem", width: "auto" }}
+                      value={inquirySort}
+                      onChange={(e) => setInquirySort(e.target.value)}
+                    >
+                      <option value="newest">Newest First</option>
+                      <option value="oldest">Oldest First</option>
+                      <option value="total-desc">Highest Total Price</option>
+                    </select>
+                  </div>
+                </div>
+
+                {displayedInquiries.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b", border: "1px dashed #cbd5e1", borderRadius: "8px" }}>
+                    {inquiries.length === 0
+                      ? "No recent inquiries recorded yet. When users submit quotes on /dashboard, they will appear here."
+                      : "No inquiries match your filter criteria. Try selecting \"All Inquiries\"."}
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                    {inquiries.map((inq, index) => (
+                    {displayedInquiries.map((inq, index) => (
                       <div
-                        key={index}
+                        key={inq.quoteId || index}
                         style={{
-                          background: "rgba(15, 23, 42, 0.6)",
+                          background: "#ffffff",
                           padding: "16px 20px",
                           borderRadius: "10px",
-                          border: "1px solid rgba(255, 255, 255, 0.08)",
+                          border: "1px solid #e2e8f0",
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
                           flexWrap: "wrap",
                           gap: "10px",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 700, color: "#fbbf24", fontSize: "1rem" }}>
+                          <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "1rem" }}>
                             Quote #{inq.quoteId}
                           </div>
-                          <div style={{ fontSize: "0.85rem", color: "#cbd5e1", marginTop: "3px" }}>
+                          <div style={{ fontSize: "0.85rem", color: "#334155", marginTop: "3px" }}>
                             {inq.roomName ? `Room: ${inq.roomName}` : "No Room"} • {inq.motoName ? `Moto: ${inq.motoName}` : "No Moto"}
+                            {inq.addons && inq.addons.length > 0 ? ` • ${inq.addons.length} Add-on${inq.addons.length > 1 ? "s" : ""}` : ""}
                           </div>
                           <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "3px" }}>
-                            Dates: {inq.startDate} → {inq.endDate} ({inq.days} days) • {new Date(inq.createdAt).toLocaleString()}
+                            Dates: {inq.startDate} → {inq.endDate} ({inq.days} days) • {inq.createdAt ? new Date(inq.createdAt).toLocaleString() : ""}
                           </div>
                         </div>
 
                         <div style={{ textAlign: "right" }}>
-                          <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#34d399" }}>
+                          <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#059669" }}>
                             ${inq.totalUSD}
                           </div>
-                          <div style={{ fontSize: "0.78rem", color: "#94a3b8" }}>
+                          <div style={{ fontSize: "0.78rem", color: "#64748b" }}>
                             {inq.totalKHR?.toLocaleString()} KHR
                           </div>
                         </div>

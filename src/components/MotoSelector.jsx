@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bike, Eye, Minus, Plus, X } from "lucide-react";
+import { Bike, Eye, Minus, Plus, X, ChevronDown, Check } from "lucide-react";
 import ImageModal from "./ImageModal";
 
 export default function MotoSelector({
@@ -13,6 +13,7 @@ export default function MotoSelector({
   lang = "kh",
   t,
 }) {
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [previewTitle, setPreviewTitle] = useState("");
 
@@ -26,17 +27,17 @@ export default function MotoSelector({
       {/* Clean Header */}
       <div className="clean-section-header">
         <div className="clean-header-info">
-          <div className="clean-icon-pill">
+          <div className="clean-icon-pill" style={{ background: "#ecfdf5", color: "#059669" }}>
             <Bike size={18} />
           </div>
           <div>
             <h2 className="clean-section-title">
-              {t?.step2Title || "Step 2: Rent Your Motorbike"}
+              {t?.step2Title || (lang === "kh" ? "ម៉ូតូ (Moto)" : "Moto")}
             </h2>
             <p className="clean-section-desc">
               {selectedCount > 0
                 ? `${totalMotosQty} ${totalMotosQty === 1 ? (t?.moto || "bike") : (t?.motos || "bikes")} selected (Free 2 Helmets & Mount included)`
-                : (t?.skipMotoDesc || "Select your motorbike, or skip if room only")}
+                : (lang === "kh" ? "ជ្រើសរើសម៉ូតូសម្រាប់ដំណើរកម្សាន្តនៅសៀមរាប" : "Select your motorbike for exploring Siem Reap")}
             </p>
           </div>
         </div>
@@ -49,7 +50,7 @@ export default function MotoSelector({
             title="Clear all motorbikes"
           >
             <X size={13} />
-            <span>{t?.skipMotoTitle || "No Moto"}</span>
+            <span>Clear</span>
           </button>
         )}
       </div>
@@ -70,38 +71,113 @@ export default function MotoSelector({
         </div>
       ) : (
         <>
-          {/* Modern Clean Dropdown Picker */}
-          <div className="clean-select-wrapper">
-            <select
-              className="clean-select"
-              value=""
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === "__none__") {
-                  onClearMotos();
-                } else if (val) {
-                  onToggleMoto(val);
-                }
-              }}
+          {/* Custom Selection Trigger (Like Extra Select) */}
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              className={`custom-select-trigger-btn ${isSelectOpen ? "is-active" : ""}`}
+              onClick={() => setIsSelectOpen(!isSelectOpen)}
             >
-              <option value="">
-                {selectedCount === 0
-                  ? `+ ${t?.selectMoto || "Select motorbike model..."}`
-                  : `+ Add another motorbike (${selectedCount} selected)...`}
-              </option>
-              {motos.map((moto) => {
-                const isSelected = Boolean(selectedMotos[moto.id]);
-                return (
-                  <option key={moto.id} value={moto.id}>
-                    {isSelected ? "✓ [Selected] " : "+ "}
-                    {moto.name} — ${moto.pricePerDay}{t?.perDay || "/day"} ({moto.type || "Scooter"}, {moto.engine || "125cc"})
-                  </option>
-                );
-              })}
-              {selectedCount > 0 && (
-                <option value="__none__">— Clear All Motorbikes (Room Only) —</option>
-              )}
-            </select>
+              <div className="trigger-label-group">
+                <div className="trigger-icon-box" style={{ background: "#ecfdf5", color: "#059669" }}>
+                  <Bike size={16} />
+                </div>
+                <span className="trigger-text-main">
+                  {selectedCount === 0
+                    ? (lang === "kh" ? "+ ជ្រើសរើសម៉ូតូ (Moto)..." : "+ Select Motorbike Model...")
+                    : (lang === "kh" ? `+ បន្ថែមម៉ូតូផ្សេងទៀត (${selectedCount} គ្រឿងបានរើស)...` : `+ Add another bike (${selectedCount} selected)...`)}
+                </span>
+              </div>
+              <ChevronDown size={18} className={`trigger-chevron ${isSelectOpen ? "is-open" : ""}`} />
+            </button>
+
+            {/* Custom Dropdown Menu for Motorbikes */}
+            {isSelectOpen && (
+              <div className="custom-dropdown-panel">
+                <div className="custom-dropdown-topbar">
+                  <span className="custom-dropdown-heading">
+                    {lang === "kh" ? "បញ្ជីម៉ូតូដាក់ជួល" : "Available Motorbikes List"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsSelectOpen(false)}
+                    className="custom-dropdown-done-btn"
+                  >
+                    {lang === "kh" ? "រួចរាល់ ✓" : "Done ✓"}
+                  </button>
+                </div>
+
+                <div className="custom-dropdown-items-list">
+                  {motos.map((moto) => {
+                    const isSelected = Boolean(selectedMotos[moto.id]);
+                    const selection = selectedMotos[moto.id];
+                    const qty = selection?.qty || 1;
+
+                    return (
+                      <div
+                        key={moto.id}
+                        className={`custom-dropdown-row ${isSelected ? "is-selected" : ""}`}
+                        onClick={() => onToggleMoto(moto.id)}
+                      >
+                        {/* Thumbnail */}
+                        {moto.image ? (
+                          <div
+                            className="custom-row-thumb"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewImage(moto.image);
+                              setPreviewTitle(moto.name);
+                            }}
+                            title={lang === "kh" ? "ចុចដើម្បីមើលរូបធំ" : "Click to zoom"}
+                          >
+                            <img src={moto.image} alt={moto.name} />
+                          </div>
+                        ) : (
+                          <div className="custom-row-thumb-placeholder">
+                            <Bike size={20} color="#059669" />
+                          </div>
+                        )}
+
+                        {/* Info */}
+                        <div className="custom-row-info">
+                          <div className="custom-row-title">{moto.name}</div>
+                          <div className="custom-row-desc">
+                            {moto.type || "Scooter"} • {moto.engine || "125cc"} • Free 2 Helmets & Mount
+                            {moto.features && (
+                              <span> • {Array.isArray(moto.features) ? moto.features.slice(0, 2).join(", ") : moto.features}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Price & Add Toggle */}
+                        <div className="custom-row-right">
+                          <span className="custom-row-price">
+                            ${moto.pricePerDay}{t?.perDay || "/day"}
+                          </span>
+                          <button
+                            type="button"
+                            className={`custom-add-toggle-btn ${isSelected ? "is-added" : ""}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleMoto(moto.id);
+                            }}
+                          >
+                            {isSelected ? (
+                              <>
+                                <Check size={12} />
+                                <span>{lang === "kh" ? `បានរើស (×${qty})` : `Added (×${qty})`}</span>
+                              </>
+                            ) : (
+                              <span>{lang === "kh" ? "+ ជ្រើសរើស" : "+ Add"}</span>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Selected Moto Cards */}

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Hotel, Eye, Users, Minus, Plus, X } from "lucide-react";
+import { Hotel, Eye, Users, Minus, Plus, X, ChevronDown, Check } from "lucide-react";
 import ImageModal from "./ImageModal";
 
 export default function RoomSelector({
@@ -13,6 +13,7 @@ export default function RoomSelector({
   lang = "kh",
   t,
 }) {
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [previewTitle, setPreviewTitle] = useState("");
 
@@ -26,17 +27,17 @@ export default function RoomSelector({
       {/* Clean Header */}
       <div className="clean-section-header">
         <div className="clean-header-info">
-          <div className="clean-icon-pill">
+          <div className="clean-icon-pill" style={{ background: "#fef3c7", color: "#d97706" }}>
             <Hotel size={18} />
           </div>
           <div>
             <h2 className="clean-section-title">
-              {t?.step1Title || "Step 1: Book Your Room"}
+              {t?.step1Title || (lang === "kh" ? "បន្ទប់ (Room)" : "Room")}
             </h2>
             <p className="clean-section-desc">
               {selectedCount > 0
                 ? `${totalRoomsQty} ${totalRoomsQty === 1 ? (t?.room || "room") : (t?.rooms || "rooms")} selected`
-                : (t?.skipRoomDesc || "Select your room in Siem Reap, or skip for motorbike only")}
+                : (lang === "kh" ? "ជ្រើសរើសបន្ទប់ស្នាក់នៅរបស់អ្នកនៅសៀមរាប" : "Select your accommodation in Siem Reap")}
             </p>
           </div>
         </div>
@@ -49,7 +50,7 @@ export default function RoomSelector({
             title="Clear all rooms"
           >
             <X size={13} />
-            <span>{t?.skipRoomTitle || "No Room"}</span>
+            <span>Clear</span>
           </button>
         )}
       </div>
@@ -70,38 +71,113 @@ export default function RoomSelector({
         </div>
       ) : (
         <>
-          {/* Modern Clean Dropdown Picker */}
-          <div className="clean-select-wrapper">
-            <select
-              className="clean-select"
-              value=""
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === "__none__") {
-                  onClearRooms();
-                } else if (val) {
-                  onToggleRoom(val);
-                }
-              }}
+          {/* Custom Selection Trigger (Like Extra Select) */}
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              className={`custom-select-trigger-btn ${isSelectOpen ? "is-active" : ""}`}
+              onClick={() => setIsSelectOpen(!isSelectOpen)}
             >
-              <option value="">
-                {selectedCount === 0
-                  ? `+ ${t?.selectRoom || "Select room type..."}`
-                  : `+ Add another room (${selectedCount} selected)...`}
-              </option>
-              {rooms.map((room) => {
-                const isSelected = Boolean(selectedRooms[room.id]);
-                return (
-                  <option key={room.id} value={room.id}>
-                    {isSelected ? "✓ [Selected] " : "+ "}
-                    {room.name} — ${room.pricePerNight}{t?.perNight || "/night"} ({room.bed}, {room.capacity})
-                  </option>
-                );
-              })}
-              {selectedCount > 0 && (
-                <option value="__none__">— Clear All Rooms (Moto Only) —</option>
-              )}
-            </select>
+              <div className="trigger-label-group">
+                <div className="trigger-icon-box" style={{ background: "#fef3c7", color: "#d97706" }}>
+                  <Hotel size={16} />
+                </div>
+                <span className="trigger-text-main">
+                  {selectedCount === 0
+                    ? (lang === "kh" ? "+ ជ្រើសរើសប្រភេទបន្ទប់ (Room)..." : "+ Select Room Type...")
+                    : (lang === "kh" ? `+ បន្ថែមប្រភេទបន្ទប់ផ្សេងទៀត (${selectedCount} បន្ទប់បានរើស)...` : `+ Add another room (${selectedCount} selected)...`)}
+                </span>
+              </div>
+              <ChevronDown size={18} className={`trigger-chevron ${isSelectOpen ? "is-open" : ""}`} />
+            </button>
+
+            {/* Custom Dropdown Menu for Rooms */}
+            {isSelectOpen && (
+              <div className="custom-dropdown-panel">
+                <div className="custom-dropdown-topbar">
+                  <span className="custom-dropdown-heading">
+                    {lang === "kh" ? "បញ្ជីបន្ទប់ស្នាក់នៅ" : "Available Rooms List"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsSelectOpen(false)}
+                    className="custom-dropdown-done-btn"
+                  >
+                    {lang === "kh" ? "រួចរាល់ ✓" : "Done ✓"}
+                  </button>
+                </div>
+
+                <div className="custom-dropdown-items-list">
+                  {rooms.map((room) => {
+                    const isSelected = Boolean(selectedRooms[room.id]);
+                    const selection = selectedRooms[room.id];
+                    const qty = selection?.qty || 1;
+
+                    return (
+                      <div
+                        key={room.id}
+                        className={`custom-dropdown-row ${isSelected ? "is-selected" : ""}`}
+                        onClick={() => onToggleRoom(room.id)}
+                      >
+                        {/* Thumbnail */}
+                        {room.image ? (
+                          <div
+                            className="custom-row-thumb"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewImage(room.image);
+                              setPreviewTitle(room.name);
+                            }}
+                            title={lang === "kh" ? "ចុចដើម្បីមើលរូបធំ" : "Click to zoom"}
+                          >
+                            <img src={room.image} alt={room.name} />
+                          </div>
+                        ) : (
+                          <div className="custom-row-thumb-placeholder">
+                            <Hotel size={20} color="#d97706" />
+                          </div>
+                        )}
+
+                        {/* Info */}
+                        <div className="custom-row-info">
+                          <div className="custom-row-title">{room.name}</div>
+                          <div className="custom-row-desc">
+                            {room.category} • {room.bed} • {room.capacity}
+                            {room.amenities && (
+                              <span> • {Array.isArray(room.amenities) ? room.amenities.slice(0, 3).join(", ") : room.amenities}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Price & Add Toggle */}
+                        <div className="custom-row-right">
+                          <span className="custom-row-price">
+                            ${room.pricePerNight}{t?.perNight || "/night"}
+                          </span>
+                          <button
+                            type="button"
+                            className={`custom-add-toggle-btn ${isSelected ? "is-added" : ""}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleRoom(room.id);
+                            }}
+                          >
+                            {isSelected ? (
+                              <>
+                                <Check size={12} />
+                                <span>{lang === "kh" ? `បានរើស (×${qty})` : `Added (×${qty})`}</span>
+                              </>
+                            ) : (
+                              <span>{lang === "kh" ? "+ ជ្រើសរើស" : "+ Add"}</span>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Selected Room Cards (Clean Minimalist Luxury Card) */}

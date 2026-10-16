@@ -96,7 +96,7 @@ export default function AddonSelector({
             title="Clear all extras"
           >
             <X size={13} />
-            <span>{lang === "kh" ? "លុបទាំងអស់" : "Clear All"}</span>
+            <span>Clear</span>
           </button>
         )}
       </div>

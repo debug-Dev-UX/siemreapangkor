@@ -17,15 +17,15 @@ export const translations = {
     stayDuration: "Stay Duration",
     rentalDuration: "Rental Duration",
     
-    // Step 1: Book Room
-    step1Title: "Step 1: Book Your Room",
+    // Room
+    step1Title: "Room",
     bookRoom: "Book Room",
     optionalTag: "Optional",
     roomSelected: "Selected",
     quantity: "Quantity",
     rooms: "Rooms",
     motos: "Motorbikes",
-    skipRoomTitle: "No Room (Moto Rental Only)",
+    skipRoomTitle: "Clear",
     skipRoomDesc: "Choose this if you already have accommodation in Siem Reap",
     perNight: "/ night",
     selectRoom: "Select Room...",
@@ -33,17 +33,17 @@ export const translations = {
     close: "Close",
     closeText: "(close)",
     
-    // Step 2: Rent Moto
-    step2Title: "Step 2: Rent Your Motorbike",
+    // Moto
+    step2Title: "Moto",
     rentMoto: "Rent Motorbike",
     motoSelected: "Moto Selected",
-    skipMotoTitle: "No Moto (Room Booking Only)",
+    skipMotoTitle: "Clear",
     skipMotoDesc: "Choose this if you only need accommodation without bike rental",
     perDay: "/ day",
     selectMoto: "Select Motorbike...",
     
-    // Step 3
-    step3Title: "Step 3: Extra Services & Inclusions",
+    // Extra Services & Inclusions
+    step3Title: "Extra Services & Inclusions",
     paidServices: "Paid Extra Services & Add-ons",
     freeServices: "Free Inclusions & Gear (Customize Quantity)",
     free: "FREE",
@@ -118,15 +118,15 @@ export const translations = {
     stayDuration: "រយៈពេលស្នាក់នៅ",
     rentalDuration: "រយៈពេលជួលម៉ូតូ",
     
-    // Step 1: Book Room
-    step1Title: "ជំហានទី ១៖ កក់បន្ទប់ស្នាក់នៅ (Book Room)",
+    // Room
+    step1Title: "បន្ទប់ (Room)",
     bookRoom: "កក់បន្ទប់",
     optionalTag: "ជាជម្រើស",
     roomSelected: "បានជ្រើសរើស",
     quantity: "ចំនួន",
     rooms: "បន្ទប់",
     motos: "គ្រឿង",
-    skipRoomTitle: "មិនកក់បន្ទប់ (ជួលតែម៉ូតូ)",
+    skipRoomTitle: "Clear",
     skipRoomDesc: "ជ្រើសរើសជម្រើសនេះ ប្រសិនបើអ្នកមានកន្លែងស្នាក់នៅរួចហើយ",
     perNight: "/ មួយយប់",
     selectRoom: "ជ្រើសរើសបន្ទប់...",
@@ -134,17 +134,17 @@ export const translations = {
     close: "បិទ",
     closeText: "(បិទ)",
     
-    // Step 2: Rent Moto
-    step2Title: "ជំហានទី ២៖ ជួលម៉ូតូជិះ (Rent Moto)",
+    // Moto
+    step2Title: "ម៉ូតូ (Moto)",
     rentMoto: "ជួលម៉ូតូ",
     motoSelected: "បានជ្រើសរើស",
-    skipMotoTitle: "មិនជួលម៉ូតូ (កក់តែបន្ទប់)",
+    skipMotoTitle: "Clear",
     skipMotoDesc: "ជ្រើសរើសជម្រើសនេះ ប្រសិនបើត្រូវការតែកន្លែងស្នាក់នៅ",
     perDay: "/ មួយថ្ងៃ",
     selectMoto: "ជ្រើសរើសម៉ូតូ...",
     
-    // Step 3
-    step3Title: "ជំហានទី ៣៖ សេវាកម្មបន្ថែម & ការផ្តល់ជូនហ្វ្រី",
+    // Extra Services & Inclusions
+    step3Title: "សេវាកម្មបន្ថែម & ការផ្តល់ជូនហ្វ្រី (Extra Services)",
     paidServices: "សេវាកម្មបន្ថែមគិតថ្លៃ (Paid Extras)",
     freeServices: "សេវាកម្មហ្វ្រីឥតគិតថ្លៃ (Free Inclusions - អាចបញ្ចូលចំនួន)",
     free: "ឥតគិតថ្លៃ",

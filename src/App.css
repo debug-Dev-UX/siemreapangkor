@@ -676,110 +676,196 @@
   background: #e2e8f0;
 }
 
-/* Quotation Voucher Slip (Clean Retail Receipt Style) */
+/* Quotation & Invoice Slip */
+.invoice-modal-container {
+  max-width: 540px !important;
+}
+
+.invoice-slip-card {
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  border-radius: 8px;
+  padding: 24px;
+  color: #0f172a;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.invoice-header {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.invoice-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.invoice-brand-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.invoice-title {
+  font-size: 1.35rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #0f172a;
+}
+
+.invoice-tagline {
+  font-size: 0.74rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.invoice-divider {
+  border-bottom: 2px solid #0f172a;
+  margin: 14px 0;
+}
+
+.invoice-divider-light {
+  border-bottom: 1px dashed #cbd5e1;
+  margin: 10px 0;
+}
+
+.invoice-date-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.88rem;
+  padding: 4px 0;
+}
+
+.invoice-date-label {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.invoice-date-val {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.invoice-table-wrapper {
+  overflow-x: auto;
+  margin: 4px 0;
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.invoice-table th {
+  padding: 8px 4px;
+  border-bottom: 1px solid #0f172a;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.03em;
+}
+
+.invoice-table td {
+  padding: 10px 4px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.invoice-item-name {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.86rem;
+}
+
+.invoice-item-meta {
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.invoice-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.invoice-totals-area {
+  padding: 4px 0;
+}
+
+.invoice-sub-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: #64748b;
+  padding: 3px 0;
+}
+
+.invoice-sub-row.discount {
+  color: #e11d48;
+  font-weight: 700;
+}
+
+.invoice-total-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 6px;
+}
+
+.invoice-total-label {
+  font-size: 1.25rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #0f172a;
+  letter-spacing: 0.03em;
+}
+
+.invoice-total-val {
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.invoice-total-khr {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+.invoice-footer-note {
+  text-align: center;
+  font-size: 0.74rem;
+  color: #94a3b8;
+  margin-top: 14px;
+  border-top: 1px dotted #e2e8f0;
+  padding-top: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.invoice-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* Backward compatibility for voucher classes */
 .voucher-slip {
   background: #ffffff;
   border: 2px solid #0f172a;
   border-radius: var(--radius-xs);
   padding: 24px;
   color: #0f172a;
-}
-
-.voucher-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 2px solid #0f172a;
-  padding-bottom: 16px;
-  margin-bottom: 16px;
-}
-
-.voucher-brand-name {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: #0f172a;
-  text-transform: uppercase;
-}
-
-.voucher-quote-id {
-  font-family: monospace;
-  font-size: 0.8rem;
-  background: #0f172a;
-  color: #ffffff;
-  padding: 4px 8px;
-  border-radius: var(--radius-xs);
-  font-weight: 700;
-}
-
-.voucher-details-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.voucher-box {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xs);
-  padding: 10px 12px;
-}
-
-.voucher-box-title {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 2px;
-}
-
-.voucher-box-val {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.voucher-box-sub {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.voucher-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 16px;
-  font-size: 0.85rem;
-}
-
-.voucher-table th {
-  text-align: left;
-  padding: 8px 6px;
-  border-bottom: 1px solid #0f172a;
-  color: #0f172a;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.voucher-table td {
-  padding: 10px 6px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.voucher-footer-total {
-  background: #0f172a;
-  color: #ffffff;
-  border-radius: var(--radius-xs);
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.voucher-contacts {
-  margin-top: 14px;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  text-align: center;
 }
 
 /* Toast Message */

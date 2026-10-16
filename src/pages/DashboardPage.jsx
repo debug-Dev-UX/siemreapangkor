@@ -47,6 +47,8 @@ export default function DashboardPage() {
   // Dates state
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(defaultEndStr);
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("18:00");
 
   // Multi-selection states:
   // selectedRooms: { [roomId]: { qty: number, nights: number } }
@@ -86,6 +88,8 @@ export default function DashboardPage() {
       const urlLegacyMoto = params.get("moto");
       const urlStart = params.get("start");
       const urlEnd = params.get("end");
+      const urlStartTime = params.get("stime");
+      const urlEndTime = params.get("etime");
       const urlAddonQtys = params.get("addons_qty");
       const urlLegacyAddons = params.get("addons");
       const urlQuote = params.get("qid");
@@ -93,6 +97,8 @@ export default function DashboardPage() {
 
       if (urlStart) setStartDate(urlStart);
       if (urlEnd) setEndDate(urlEnd);
+      if (urlStartTime) setStartTime(urlStartTime);
+      if (urlEndTime) setEndTime(urlEndTime);
       if (urlQuote) setQuoteId(urlQuote);
 
       // Restore multi rooms
@@ -359,6 +365,8 @@ export default function DashboardPage() {
     }
     url.searchParams.set("start", startDate);
     url.searchParams.set("end", endDate);
+    if (startTime) url.searchParams.set("stime", startTime);
+    if (endTime) url.searchParams.set("etime", endTime);
     if (appliedCoupon) {
       url.searchParams.set("cp", appliedCoupon.code);
     }
@@ -377,10 +385,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Telegram reservation handler
+  // Telegram reservation handler matching user requested format
   const handleSendTelegram = () => {
-    const shareUrl = generateShareUrl();
-
     // If coupon was applied, increment usedCount and persist
     if (appliedCoupon) {
       const updatedCoupons = coupons.map((c) => {
@@ -408,62 +414,66 @@ export default function DashboardPage() {
       tripDays,
       startDate,
       endDate,
+      startTime,
+      endTime,
       couponCode: appliedCoupon ? appliedCoupon.code : null,
       totalUSD: finalTotalUSD,
       totalKHR: finalTotalKHR,
       createdAt: new Date().toISOString(),
     });
 
-    // Build Telegram markdown message
-    const roomLines =
-      selectedRoomItems.length > 0
-        ? selectedRoomItems
-            .map(
-              (i) =>
-                `   • ${i.room.name} (Qty: ${i.qty}) — $${i.room.pricePerNight}/night × ${i.nights} nights = $${i.cost}`
-            )
-            .join("\n")
-        : "   • None (Motorbike rental only)";
+    // Build Telegram message
+    const hasMotos = selectedMotoItems.length > 0;
+    const hasRooms = selectedRoomItems.length > 0;
+    const hasExtras = selectedAddonItems.length > 0;
 
-    const motoLines =
-      selectedMotoItems.length > 0
-        ? selectedMotoItems
-            .map(
-              (i) =>
-                `   • ${i.moto.name} (Qty: ${i.qty}) — $${i.moto.pricePerDay}/day × ${i.days} days = $${i.cost}\n     (Free ${i.qty * 2} Helmets & ${i.qty} Phone Mounts included)`
-            )
-            .join("\n")
-        : "   • None (Room booking only)";
+    let greetingItem = "";
+    if (hasMotos && hasRooms) {
+      greetingItem = "ជួលម៉ូតូ និង បន្ទប់";
+    } else if (hasMotos && !hasRooms) {
+      greetingItem = "ជួលម៉ូតូ";
+    } else if (!hasMotos && hasRooms) {
+      greetingItem = "កក់បន្ទប់";
+    } else if (hasExtras) {
+      greetingItem = "កក់សេវាកម្មបន្ថែម";
+    } else {
+      greetingItem = "សួរព័ត៌មាន";
+    }
 
-    const addonLines =
-      selectedAddonItems.length > 0
-        ? selectedAddonItems
-            .map((i) => `   • ${i.addon.name} (Qty: ${i.qty}) — ${i.cost === 0 ? "FREE" : `$${i.cost}`}`)
-            .join("\n")
-        : "   • None";
+    const lines = [];
+    lines.push(`សួរស្ដីបងខ្ញុំចង់${greetingItem}`);
+    lines.push(`- ចាប់ផ្ដើមថ្ងៃទី ${startDate} ម៉ោង ${startTime}`);
+    lines.push(`-ចប់ថ្ងៃទី ${endDate} ម៉ោង ${endTime}`);
+    lines.push("");
 
-    const message = `*Siemreap Angkor Reservation Request*
-━━━━━━━━━━━━━━━━━━━━
-*Quote ID:* #${quoteId}
-*Travel Dates:* ${startDate} → ${endDate} (${tripDays} ${tripDays === 1 ? "day" : "days"})
+    if (hasMotos) {
+      selectedMotoItems.forEach((i) => {
+        lines.push(`-${i.moto.name} x${i.qty}`);
+      });
+    }
 
-*Rooms Booked:*
-${roomLines}
+    if (hasRooms) {
+      selectedRoomItems.forEach((i) => {
+        lines.push(`-${i.room.name} x${i.qty}`);
+      });
+    }
 
-*Motorbikes Rented:*
-${motoLines}
+    if (hasExtras) {
+      lines.push("");
+      lines.push("+Extra");
+      selectedAddonItems.forEach((i) => {
+        if (i.cost === 0) {
+          lines.push(`-${i.addon.name} x${i.qty}`);
+        } else {
+          lines.push(`-${i.addon.name} x${i.qty} ${i.cost}$`);
+        }
+      });
+    }
 
-*Extra Services & Inclusions:*
-${addonLines}
+    lines.push("");
+    lines.push(`Total: ${finalTotalUSD}$`);
 
-${isCombo && comboDiscountAmount > 0 ? `*Combo Discount (${settings.comboDiscountPercent}%):* -$${comboDiscountAmount}\n` : ""}${appliedCoupon ? `*Coupon Applied (${appliedCoupon.code}):* -$${couponDiscountAmount}\n` : ""}━━━━━━━━━━━━━━━━━━━━
-*TOTAL:* $${finalTotalUSD} USD (~${finalTotalKHR.toLocaleString()} KHR)
-
-*Preview / Quote Link:*
-${shareUrl}
-
-Hello! I selected this quote on your website and would like to confirm booking and availability. Please reply to me!`;
-
+    const message = lines.join("\n");
     const cleanUsername = (settings.telegramUsername || "Motor_Rental_Siemreap_Angkor").replace("@", "");
     const tgUrl = `https://t.me/${cleanUsername}?text=${encodeURIComponent(message)}`;
     window.open(tgUrl, "_blank");
@@ -507,8 +517,12 @@ Hello! I selected this quote on your website and would like to confirm booking a
         <DateSelector
           startDate={startDate}
           endDate={endDate}
+          startTime={startTime}
+          endTime={endTime}
           onStartDateChange={setStartDate}
           onEndDateChange={setEndDate}
+          onStartTimeChange={setStartTime}
+          onEndTimeChange={setEndTime}
           days={tripDays}
           t={t}
         />
@@ -557,6 +571,8 @@ Hello! I selected this quote on your website and would like to confirm booking a
         selectedAddonItems={selectedAddonItems}
         startDate={startDate}
         endDate={endDate}
+        startTime={startTime}
+        endTime={endTime}
         settings={settings}
         onCopyLink={handleCopyLink}
         onOpenVoucher={() => setIsVoucherOpen(true)}
@@ -571,7 +587,7 @@ Hello! I selected this quote on your website and would like to confirm booking a
         t={t}
       />
 
-      {/* Voucher Slip Modal (with Download PNG) */}
+      {/* Invoice Modal (with Download PNG & Send to Telegram) */}
       <VoucherSlipModal
         isOpen={isVoucherOpen}
         onClose={() => setIsVoucherOpen(false)}
@@ -580,6 +596,8 @@ Hello! I selected this quote on your website and would like to confirm booking a
         selectedAddonItems={selectedAddonItems}
         startDate={startDate}
         endDate={endDate}
+        startTime={startTime}
+        endTime={endTime}
         settings={settings}
         quoteId={quoteId}
         onSendTelegram={handleSendTelegram}

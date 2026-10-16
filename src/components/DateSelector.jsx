@@ -4,8 +4,12 @@ import { Calendar } from "lucide-react";
 export default function DateSelector({
   startDate,
   endDate,
+  startTime = "08:00",
+  endTime = "18:00",
   onStartDateChange,
   onEndDateChange,
+  onStartTimeChange,
+  onEndTimeChange,
   days,
   t,
 }) {
@@ -23,12 +27,23 @@ export default function DateSelector({
           <Calendar size={13} color="#0f172a" />
           <span>{t?.rentalStart || "Rental Start / Check-in"}</span>
         </label>
-        <input
-          type="date"
-          className="date-input"
-          value={startDate}
-          onChange={(e) => onStartDateChange(e.target.value)}
-        />
+        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+          <input
+            type="date"
+            className="date-input"
+            style={{ flex: 1, minWidth: "130px" }}
+            value={startDate}
+            onChange={(e) => onStartDateChange(e.target.value)}
+          />
+          <input
+            type="time"
+            className="date-input"
+            style={{ width: "95px" }}
+            value={startTime}
+            onChange={(e) => onStartTimeChange && onStartTimeChange(e.target.value)}
+            title="Start Time"
+          />
+        </div>
       </div>
 
       <div className="date-group">
@@ -36,13 +51,24 @@ export default function DateSelector({
           <Calendar size={13} color="#0f172a" />
           <span>{t?.rentalEnd || "Rental End / Check-out"}</span>
         </label>
-        <input
-          type="date"
-          className="date-input"
-          value={endDate}
-          min={startDate}
-          onChange={(e) => onEndDateChange(e.target.value)}
-        />
+        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+          <input
+            type="date"
+            className="date-input"
+            style={{ flex: 1, minWidth: "130px" }}
+            value={endDate}
+            min={startDate}
+            onChange={(e) => onEndDateChange(e.target.value)}
+          />
+          <input
+            type="time"
+            className="date-input"
+            style={{ width: "95px" }}
+            value={endTime}
+            onChange={(e) => onEndTimeChange && onEndTimeChange(e.target.value)}
+            title="End Time"
+          />
+        </div>
       </div>
 
       <div className="duration-summary-pill">

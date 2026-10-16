@@ -5,14 +5,10 @@ import {
   Download,
   Copy,
   Check,
-  Tag,
   Calendar,
   X,
-  Hotel,
-  Bike,
-  PackageCheck,
   TicketPercent,
-  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 
 export default function CartPopup({
@@ -78,8 +74,6 @@ export default function CartPopup({
   const totalAddonsQty = selectedAddonItems.reduce((sum, i) => sum + i.qty, 0);
   const totalItemsCount = totalRoomsQty + totalMotosQty + totalAddonsQty;
 
-  const closeText = lang === "kh" ? "(បិទ)" : "(close)";
-
   const handleApplyClick = (e) => {
     e.preventDefault();
     if (!couponInput.trim()) return;
@@ -90,373 +84,203 @@ export default function CartPopup({
 
   return (
     <>
-      {/* Floating Pill Button (Bottom Left) */}
-      <div className="cart-popup-container">
-        <button
-          type="button"
-          className="cart-floating-pill"
-          onClick={() => setIsOpen(true)}
-          title={t?.viewCart || "View Cart"}
-        >
-          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-            <ShoppingBag size={20} color="#ffffff" />
-            {totalItemsCount > 0 && (
-              <span className="cart-count-badge">{totalItemsCount}</span>
-            )}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
-            <span style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.04em", color: "#94a3b8", fontWeight: 700 }}>
-              {t?.cart || "Cart"} ({totalItemsCount})
-            </span>
-            <span style={{ fontWeight: 800, fontSize: "1.05rem", color: "#ffffff", fontFamily: "var(--font-brand)" }}>
-              ${finalTotalUSD} USD
-            </span>
-          </div>
-        </button>
-      </div>
+      {/* Sleek Floating Bottom Checkout Pill */}
+      {totalItemsCount > 0 && (
+        <div className="cart-floating-dock">
+          <button
+            type="button"
+            className="cart-floating-btn"
+            onClick={() => setIsOpen(true)}
+            aria-label="View Cart"
+          >
+            <div className="cart-floating-left">
+              <div className="cart-icon-bubble">
+                <ShoppingBag size={17} />
+                <span className="cart-bubble-badge">{totalItemsCount}</span>
+              </div>
+              <div className="cart-floating-text">
+                <span className="cart-floating-count">{totalItemsCount} {t?.items || "items"}</span>
+                <span className="cart-floating-price">${finalTotalUSD} USD</span>
+              </div>
+            </div>
 
-      {/* NEW CENTERED CART MODAL DIALOG */}
+            <div className="cart-floating-right">
+              <span>{t?.viewCart || "View Cart"}</span>
+              <ArrowRight size={15} />
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Clean Centered Cart Modal Dialog */}
       {isOpen && (
         <div className="cart-modal-backdrop" onClick={() => setIsOpen(false)}>
           <div
-            className="cart-modal-center"
+            className="cart-modal-sheet"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="cart-modal-header">
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div
-                  style={{
-                    width: "34px",
-                    height: "34px",
-                    borderRadius: "8px",
-                    background: "#0f172a",
-                    color: "#ffffff",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <ShoppingBag size={18} />
+            <div className="cart-sheet-header">
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h3 className="cart-sheet-title">{t?.cartSummary || "Cart Summary"}</h3>
+                  <span className="cart-sheet-badge">{totalItemsCount} {t?.items || "items"}</span>
                 </div>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <h3 style={{ fontWeight: 800, fontSize: "1.1rem", color: "#0f172a", margin: 0 }}>
-                      {t?.cartSummary || "Cart Summary"}
-                    </h3>
-                    <span
-                      style={{
-                        background: "#0f172a",
-                        color: "#ffffff",
-                        fontSize: "0.7rem",
-                        fontWeight: 800,
-                        padding: "2px 7px",
-                        borderRadius: "10px",
-                      }}
-                    >
-                      {totalItemsCount} {t?.items || "items"}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
-                    <Calendar size={12} />
-                    <span>{startDate} → {endDate}</span>
-                  </div>
+                <div className="cart-sheet-dates">
+                  <Calendar size={12} />
+                  <span>{startDate} → {endDate}</span>
                 </div>
               </div>
 
-              {/* Close Button */}
+              {/* Clean Inline Close Button (NEVER floats outside!) */}
               <button
                 type="button"
-                className="modal-close-btn"
+                className="cart-sheet-close"
                 onClick={() => setIsOpen(false)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  padding: "5px 10px",
-                  width: "auto",
-                  background: "#f1f5f9",
-                  borderRadius: "6px",
-                  border: "1px solid #e2e8f0",
-                  cursor: "pointer",
-                }}
+                aria-label="Close"
               >
-                <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569" }}>
-                  {closeText}
-                </span>
-                <X size={16} color="#475569" />
+                <X size={18} />
               </button>
             </div>
 
-            {/* Scrollable Modal Body */}
-            <div className="cart-modal-body">
+            {/* Modal Body */}
+            <div className="cart-sheet-body">
               {totalItemsCount === 0 ? (
-                <div style={{ textAlign: "center", padding: "36px 16px", color: "#64748b" }}>
-                  <ShoppingBag size={36} color="#cbd5e1" style={{ margin: "0 auto 12px" }} />
+                <div className="cart-empty-state">
+                  <ShoppingBag size={36} color="#cbd5e1" style={{ margin: "0 auto 10px" }} />
                   <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#334155" }}>
-                    {t?.noItemsSelected || "Your cart is currently empty"}
+                    {t?.noItemsSelected || "Your cart is empty"}
                   </div>
                   <div style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "4px" }}>
-                    Select a room, motorbike, or extra services above to get started.
+                    Select rooms, motorbikes, or extras to preview your booking.
                   </div>
                 </div>
               ) : (
                 <>
-                  {/* ROOMS BREAKDOWN */}
-                  {selectedRoomItems.length > 0 && (
-                    <div className="cart-section-box">
-                      <div className="cart-section-title">
-                        <Hotel size={14} color="#0f172a" />
-                        <span>{t?.bookRoom || "Room Accommodation"}</span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {selectedRoomItems.map(({ room, qty, nights, cost }) => (
-                          <div key={room.id} className="cart-item-row">
-                            <div>
-                              <div className="cart-item-title">
-                                {room.name} {qty > 1 ? `(×${qty} rooms)` : ""}
-                              </div>
-                              <div className="cart-item-subtitle">
-                                ${room.pricePerNight} × {nights} {nights === 1 ? (t?.night || "night") : (t?.nights || "nights")}{qty > 1 ? ` × ${qty} rooms` : ""}
-                              </div>
-                            </div>
-                            <div className="cart-item-price">${cost}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* MOTOS BREAKDOWN */}
-                  {selectedMotoItems.length > 0 && (
-                    <div className="cart-section-box">
-                      <div className="cart-section-title">
-                        <Bike size={14} color="#0f172a" />
-                        <span>{t?.rentMoto || "Motorbike Rentals"}</span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {selectedMotoItems.map(({ moto, qty, days, cost }) => (
-                          <div key={moto.id} className="cart-item-row">
-                            <div>
-                              <div className="cart-item-title">
-                                {moto.name} {qty > 1 ? `(×${qty} bikes)` : ""}
-                              </div>
-                              <div className="cart-item-subtitle">
-                                ${moto.pricePerDay} × {days} {days === 1 ? (t?.day || "day") : (t?.days || "days")}{qty > 1 ? ` × ${qty} bikes` : ""}
-                              </div>
-                              <div style={{ fontSize: "0.7rem", color: "#059669", fontWeight: 600, marginTop: "2px" }}>
-                                ✓ Includes {qty * 2} free helmets & {qty} phone mount
-                              </div>
-                            </div>
-                            <div className="cart-item-price">${cost}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ADDONS BREAKDOWN */}
-                  {selectedAddonItems.length > 0 && (
-                    <div className="cart-section-box">
-                      <div className="cart-section-title">
-                        <PackageCheck size={14} color="#0f172a" />
-                        <span>{t?.step3Title || "Extra Services & Inclusions"}</span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {selectedAddonItems.map(({ addon, qty, cost }) => (
-                          <div key={addon.id} className="cart-item-row">
-                            <div>
-                              <div className="cart-item-title">
-                                {addon.name} {qty > 1 ? `(×${qty})` : ""}
-                              </div>
-                              <div className="cart-item-subtitle">
-                                {addon.price === 0
-                                  ? "Free inclusion item"
-                                  : addon.type === "per-day"
-                                  ? `$${addon.price}/day × rental days`
-                                  : "One-time service"}
-                              </div>
-                            </div>
-                            <div
-                              className="cart-item-price"
-                              style={{ color: cost === 0 ? "#059669" : "#0f172a" }}
-                            >
-                              {cost === 0 ? (t?.free || "FREE") : `$${cost}`}
+                  {/* Clean List Items (NO nested boxes!) */}
+                  <div className="cart-items-stream">
+                    {/* Rooms */}
+                    {selectedRoomItems.map(({ room, qty, nights, cost }) => (
+                      <div key={room.id} className="cart-stream-row">
+                        <div className="stream-row-left">
+                          <span className="stream-type-tag room">Room</span>
+                          <div>
+                            <div className="stream-row-title">{room.name}</div>
+                            <div className="stream-row-sub">
+                              {qty > 1 ? `${qty} rooms • ` : ""}${nights} {nights === 1 ? "night" : "nights"} (${room.pricePerNight}$/night)
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* PROMO COUPON CODE */}
-                  <div
-                    style={{
-                      background: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "10px",
-                      padding: "12px 14px",
-                    }}
-                  >
-                    {!appliedCoupon ? (
-                      <div>
-                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569", marginBottom: "6px" }}>
-                          {t?.haveCoupon || "Have a promo discount coupon?"}
                         </div>
-                        <form onSubmit={handleApplyClick} style={{ display: "flex", gap: "8px" }}>
+                        <div className="stream-row-price">${cost}</div>
+                      </div>
+                    ))}
+
+                    {/* Motos */}
+                    {selectedMotoItems.map(({ moto, qty, days, cost }) => (
+                      <div key={moto.id} className="cart-stream-row">
+                        <div className="stream-row-left">
+                          <span className="stream-type-tag moto">Moto</span>
+                          <div>
+                            <div className="stream-row-title">{moto.name}</div>
+                            <div className="stream-row-sub">
+                              {qty > 1 ? `${qty} bikes • ` : ""}${days} {days === 1 ? "day" : "days"} (${moto.pricePerDay}$/day)
+                            </div>
+                          </div>
+                        </div>
+                        <div className="stream-row-price">${cost}</div>
+                      </div>
+                    ))}
+
+                    {/* Extras */}
+                    {selectedAddonItems.map(({ addon, qty, cost }) => (
+                      <div key={addon.id} className="cart-stream-row">
+                        <div className="stream-row-left">
+                          <span className={`stream-type-tag ${cost === 0 ? "free" : "extra"}`}>
+                            {cost === 0 ? "Free" : "Extra"}
+                          </span>
+                          <div>
+                            <div className="stream-row-title">{addon.name}</div>
+                            <div className="stream-row-sub">
+                              {qty > 1 ? `Quantity: ${qty}` : "1 unit included"}
+                            </div>
+                          </div>
+                        </div>
+                        <div className={`stream-row-price ${cost === 0 ? "free-text" : ""}`}>
+                          {cost === 0 ? "FREE" : `$${cost}`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Clean Coupon Input */}
+                  <div className="cart-coupon-strip">
+                    {!appliedCoupon ? (
+                      <form onSubmit={handleApplyClick} className="cart-coupon-form">
+                        <div style={{ position: "relative", flex: 1 }}>
+                          <TicketPercent size={15} className="coupon-input-icon" />
                           <input
                             type="text"
-                            className="input-field"
-                            style={{ padding: "8px 12px", fontSize: "0.82rem", textTransform: "uppercase" }}
-                            placeholder={t?.enterCoupon || "e.g. ANGKOR10"}
+                            className="cart-coupon-input"
+                            placeholder={t?.enterCoupon || "Coupon code (e.g. ANGKOR10)"}
                             value={couponInput}
                             onChange={(e) => setCouponInput(e.target.value)}
                           />
-                          <button
-                            type="submit"
-                            className="btn-primary"
-                            style={{ padding: "8px 16px", fontSize: "0.8rem", whiteSpace: "nowrap" }}
-                          >
-                            {t?.apply || "Apply"}
-                          </button>
-                        </form>
-                      </div>
+                        </div>
+                        <button type="submit" className="cart-coupon-btn">
+                          {t?.apply || "Apply"}
+                        </button>
+                      </form>
                     ) : (
-                      <div
-                        style={{
-                          background: "#eff6ff",
-                          border: "1px dashed #3b82f6",
-                          borderRadius: "8px",
-                          padding: "8px 12px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <TicketPercent size={16} color="#2563eb" />
-                          <div>
-                            <div style={{ fontWeight: 800, fontSize: "0.88rem", color: "#1e40af" }}>
-                              {appliedCoupon.code}
-                            </div>
-                            <div style={{ fontSize: "0.72rem", color: "#3b82f6" }}>
-                              {appliedCoupon.discountType === "percent"
-                                ? `${appliedCoupon.discountValue}% Off Total Order`
-                                : `$${appliedCoupon.discountValue} USD Off`}
-                            </div>
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontWeight: 800, color: "#2563eb", fontSize: "0.95rem" }}>
-                            -${couponDiscountAmount} USD
+                      <div className="cart-coupon-active">
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <TicketPercent size={15} color="#059669" />
+                          <span style={{ fontWeight: 700, color: "#059669", fontSize: "0.82rem" }}>
+                            {appliedCoupon.code} (-${couponDiscountAmount})
                           </span>
-                          <button
-                            type="button"
-                            onClick={onRemoveCoupon}
-                            style={{
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              color: "#94a3b8",
-                              padding: "2px",
-                            }}
-                            title="Remove coupon"
-                          >
-                            <X size={14} />
-                          </button>
                         </div>
+                        <button
+                          type="button"
+                          className="cart-coupon-remove"
+                          onClick={onRemoveCoupon}
+                        >
+                          {t?.removeCoupon || "Remove"}
+                        </button>
                       </div>
                     )}
-
-                    {couponError && (
-                      <div style={{ fontSize: "0.75rem", color: "#dc2626", marginTop: "6px", fontWeight: 600 }}>
-                        {couponError}
-                      </div>
-                    )}
-                    {couponSuccess && (
-                      <div style={{ fontSize: "0.75rem", color: "#16a34a", marginTop: "6px", fontWeight: 600 }}>
-                        {couponSuccess}
-                      </div>
-                    )}
+                    {couponError && <div className="cart-coupon-error">{couponError}</div>}
+                    {couponSuccess && <div className="cart-coupon-success">{couponSuccess}</div>}
                   </div>
 
-                  {/* COMBO DISCOUNT BANNER */}
-                  {isCombo && comboDiscountAmount > 0 && (
-                    <div
-                      style={{
-                        background: "#f0fdf4",
-                        border: "1px solid #bbf7d0",
-                        borderRadius: "8px",
-                        padding: "8px 12px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        color: "#15803d",
-                        fontSize: "0.82rem",
-                        fontWeight: 700,
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <Tag size={14} />
-                        <span>{t?.comboDiscount || "Combo Special"} ({settings.comboDiscountPercent}%)</span>
-                      </div>
-                      <span>-${comboDiscountAmount} USD</span>
-                    </div>
-                  )}
-
-                  {/* FINANCIAL TOTALS SUMMARY */}
-                  <div
-                    style={{
-                      background: "#f8fafc",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "10px",
-                      padding: "14px 16px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "6px",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "#64748b" }}>
+                  {/* Clean Summary Breakdown */}
+                  <div className="cart-cost-summary">
+                    <div className="summary-line">
                       <span>Subtotal</span>
-                      <span style={{ fontWeight: 700, color: "#0f172a" }}>${subtotal} USD</span>
+                      <span className="summary-mono">${subtotal} USD</span>
                     </div>
 
                     {isCombo && comboDiscountAmount > 0 && (
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "#16a34a" }}>
-                        <span>Combo Discount</span>
-                        <span style={{ fontWeight: 700 }}>-${comboDiscountAmount} USD</span>
+                      <div className="summary-line discount">
+                        <span>Combo Discount ({settings.comboDiscountPercent}%)</span>
+                        <span className="summary-mono">-${comboDiscountAmount} USD</span>
                       </div>
                     )}
 
                     {appliedCoupon && (
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "#2563eb" }}>
+                      <div className="summary-line discount">
                         <span>Coupon ({appliedCoupon.code})</span>
-                        <span style={{ fontWeight: 700 }}>-${couponDiscountAmount} USD</span>
+                        <span className="summary-mono">-${couponDiscountAmount} USD</span>
                       </div>
                     )}
 
-                    <div
-                      style={{
-                        borderTop: "2px solid #0f172a",
-                        paddingTop: "8px",
-                        marginTop: "4px",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-end",
-                      }}
-                    >
+                    <div className="summary-divider"></div>
+
+                    <div className="summary-total-row">
                       <div>
-                        <div style={{ fontSize: "0.78rem", textTransform: "uppercase", fontWeight: 800, color: "#64748b" }}>
-                          {t?.estimatedTotal || "Estimated Total"}
-                        </div>
-                        <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#059669", marginTop: "2px" }}>
-                          ≈ {finalTotalKHR.toLocaleString()} KHR
-                        </div>
+                        <div className="summary-total-title">{t?.estimatedTotal || "Estimated Total"}</div>
+                        <div className="summary-khr-equiv">≈ {finalTotalKHR.toLocaleString()} KHR</div>
                       </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: "1.45rem", fontWeight: 900, color: "#0f172a", fontFamily: "var(--font-brand)", lineHeight: 1 }}>
-                          ${finalTotalUSD} <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>USD</span>
-                        </div>
+                      <div className="summary-total-figure">
+                        ${finalTotalUSD} <span className="figure-unit">USD</span>
                       </div>
                     </div>
                   </div>
@@ -465,71 +289,38 @@ export default function CartPopup({
             </div>
 
             {/* Modal Actions Footer */}
-            <div className="cart-modal-footer">
+            <div className="cart-sheet-footer">
               <button
                 type="button"
-                className="btn-primary"
+                className="cart-primary-action"
                 onClick={() => {
                   setIsOpen(false);
                   onSendTelegram();
                 }}
                 disabled={totalItemsCount === 0}
-                style={{
-                  width: "100%",
-                  padding: "14px",
-                  fontSize: "0.92rem",
-                  fontWeight: 800,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  background: "#0f172a",
-                  color: "#ffffff",
-                  borderRadius: "8px",
-                  cursor: totalItemsCount === 0 ? "not-allowed" : "pointer",
-                  opacity: totalItemsCount === 0 ? 0.6 : 1,
-                }}
               >
                 <Send size={16} />
                 <span>{t?.confirmViaTelegram || "CONFIRM VIA TELEGRAM"}</span>
               </button>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <div className="cart-secondary-actions">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="cart-ghost-action"
                   onClick={() => {
                     setIsOpen(false);
                     onOpenVoucher();
                   }}
                   disabled={totalItemsCount === 0}
-                  style={{
-                    padding: "10px",
-                    fontSize: "0.78rem",
-                    fontWeight: 700,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                  }}
                 >
                   <Download size={14} />
-                  <span>{t?.downloadSlip || "Quotation Slip"}</span>
+                  <span>{lang === "kh" ? "វិក្កយបត្រ (Invoice)" : "Invoice"}</span>
                 </button>
 
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="cart-ghost-action"
                   onClick={onCopyLink}
-                  style={{
-                    padding: "10px",
-                    fontSize: "0.78rem",
-                    fontWeight: 700,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                  }}
                 >
                   {copied ? <Check size={14} color="#16a34a" /> : <Copy size={14} />}
                   <span>{copied ? (t?.linkCopied || "Copied!") : (t?.copyLink || "Share Link")}</span>

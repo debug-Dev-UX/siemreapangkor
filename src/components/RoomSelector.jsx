@@ -19,10 +19,7 @@ export default function RoomSelector({
   const selectedRoomList = rooms.filter((r) => Boolean(selectedRooms[r.id]));
   const selectedCount = selectedRoomList.length;
   const totalRoomsQty = Object.values(selectedRooms).reduce((sum, item) => sum + (item?.qty || 0), 0);
-
-  if (!rooms || rooms.length === 0) {
-    return null;
-  }
+  const hasRooms = rooms && rooms.length > 0;
 
   return (
     <section className="clean-section-card">
@@ -57,157 +54,175 @@ export default function RoomSelector({
         )}
       </div>
 
-      {/* Modern Clean Dropdown Picker */}
-      <div className="clean-select-wrapper">
-        <select
-          className="clean-select"
-          value=""
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val === "__none__") {
-              onClearRooms();
-            } else if (val) {
-              onToggleRoom(val);
-            }
-          }}
-        >
-          <option value="">
-            {selectedCount === 0
-              ? `+ ${t?.selectRoom || "Select room type..."}`
-              : `+ Add another room (${selectedCount} selected)...`}
-          </option>
-          {rooms.map((room) => {
-            const isSelected = Boolean(selectedRooms[room.id]);
-            return (
-              <option key={room.id} value={room.id}>
-                {isSelected ? "✓ [Selected] " : "+ "}
-                {room.name} — ${room.pricePerNight}{t?.perNight || "/night"} ({room.bed}, {room.capacity})
+      {!hasRooms ? (
+        <div style={{
+          padding: "20px 16px",
+          background: "#f8fafc",
+          borderRadius: "10px",
+          border: "1px dashed #cbd5e1",
+          textAlign: "center",
+          color: "#64748b",
+          fontSize: "0.85rem",
+        }}>
+          {lang === "kh"
+            ? "មិនទាន់មានបន្ទប់ដាក់ជួលនៅឡើយទេ (អាចបន្ថែមបន្ទប់បាននៅទំព័រ Admin)"
+            : "No rooms currently listed. You can add rooms in the Admin panel (/admin)."}
+        </div>
+      ) : (
+        <>
+          {/* Modern Clean Dropdown Picker */}
+          <div className="clean-select-wrapper">
+            <select
+              className="clean-select"
+              value=""
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "__none__") {
+                  onClearRooms();
+                } else if (val) {
+                  onToggleRoom(val);
+                }
+              }}
+            >
+              <option value="">
+                {selectedCount === 0
+                  ? `+ ${t?.selectRoom || "Select room type..."}`
+                  : `+ Add another room (${selectedCount} selected)...`}
               </option>
-            );
-          })}
-          {selectedCount > 0 && (
-            <option value="__none__">— Clear All Rooms (Moto Only) —</option>
-          )}
-        </select>
-      </div>
+              {rooms.map((room) => {
+                const isSelected = Boolean(selectedRooms[room.id]);
+                return (
+                  <option key={room.id} value={room.id}>
+                    {isSelected ? "✓ [Selected] " : "+ "}
+                    {room.name} — ${room.pricePerNight}{t?.perNight || "/night"} ({room.bed}, {room.capacity})
+                  </option>
+                );
+              })}
+              {selectedCount > 0 && (
+                <option value="__none__">— Clear All Rooms (Moto Only) —</option>
+              )}
+            </select>
+          </div>
 
-      {/* Selected Room Cards (Clean Minimalist Luxury Card) */}
-      {selectedRoomList.length > 0 && (
-        <div className="clean-items-grid">
-          {selectedRoomList.map((room) => {
-            const selection = selectedRooms[room.id];
-            const qty = selection?.qty || 1;
-            const nights = selection?.nights || defaultNights;
-            const cost = room.pricePerNight * nights * qty;
+          {/* Selected Room Cards (Clean Minimalist Luxury Card) */}
+          {selectedRoomList.length > 0 && (
+            <div className="clean-items-grid">
+              {selectedRoomList.map((room) => {
+                const selection = selectedRooms[room.id];
+                const qty = selection?.qty || 1;
+                const nights = selection?.nights || defaultNights;
+                const cost = room.pricePerNight * nights * qty;
 
-            return (
-              <div key={room.id} className="clean-item-card">
-                <div className="clean-item-top">
-                  {/* Photo or Icon */}
-                  {room.image ? (
-                    <div
-                      className="clean-item-thumb"
-                      onClick={() => {
-                        setPreviewImage(room.image);
-                        setPreviewTitle(room.name);
-                      }}
-                      title="Preview Photo"
-                    >
-                      <img src={room.image} alt={room.name} />
-                      <div className="thumb-zoom-overlay">
-                        <Eye size={14} color="#ffffff" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="clean-item-thumb-placeholder">
-                      <Hotel size={20} color="#94a3b8" />
-                    </div>
-                  )}
+                return (
+                  <div key={room.id} className="clean-item-card">
+                    <div className="clean-item-top">
+                      {/* Photo or Icon */}
+                      {room.image ? (
+                        <div
+                          className="clean-item-thumb"
+                          onClick={() => {
+                            setPreviewImage(room.image);
+                            setPreviewTitle(room.name);
+                          }}
+                          title="Preview Photo"
+                        >
+                          <img src={room.image} alt={room.name} />
+                          <div className="thumb-zoom-overlay">
+                            <Eye size={14} color="#ffffff" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="clean-item-thumb-placeholder">
+                          <Hotel size={20} color="#94a3b8" />
+                        </div>
+                      )}
 
-                  {/* Info */}
-                  <div className="clean-item-details">
-                    <div className="clean-item-row-top">
-                      <div>
-                        <div className="clean-item-title">{room.name}</div>
-                        <div className="clean-item-meta">
-                          <span><Users size={12} style={{ display: "inline" }} /> {room.capacity}</span>
-                          {room.bed && <span> • {room.bed}</span>}
+                      {/* Info */}
+                      <div className="clean-item-details">
+                        <div className="clean-item-row-top">
+                          <div>
+                            <div className="clean-item-title">{room.name}</div>
+                            <div className="clean-item-meta">
+                              <span><Users size={12} style={{ display: "inline" }} /> {room.capacity}</span>
+                              {room.bed && <span> • {room.bed}</span>}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onToggleRoom(room.id)}
+                            className="clean-remove-btn"
+                            title="Remove"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+
+                        <div className="clean-item-rate">
+                          ${room.pricePerNight} <span className="rate-unit">{t?.perNight || "/ night"}</span>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => onToggleRoom(room.id)}
-                        className="clean-remove-btn"
-                        title="Remove"
-                      >
-                        <X size={15} />
-                      </button>
                     </div>
 
-                    <div className="clean-item-rate">
-                      ${room.pricePerNight} <span className="rate-unit">{t?.perNight || "/ night"}</span>
-                    </div>
-                  </div>
-                </div>
+                    {/* Minimalist Controls */}
+                    <div className="clean-item-controls">
+                      <div className="clean-steppers-wrap">
+                        {/* Qty */}
+                        <div className="clean-stepper-group">
+                          <span className="stepper-label">{t?.rooms || "Rooms"}:</span>
+                          <div className="clean-stepper">
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => onUpdateRoomQty(room.id, Math.max(1, qty - 1))}
+                              disabled={qty <= 1}
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span className="stepper-val">{qty}</span>
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => onUpdateRoomQty(room.id, qty + 1)}
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                        </div>
 
-                {/* Minimalist Controls */}
-                <div className="clean-item-controls">
-                  <div className="clean-steppers-wrap">
-                    {/* Qty */}
-                    <div className="clean-stepper-group">
-                      <span className="stepper-label">{t?.rooms || "Rooms"}:</span>
-                      <div className="clean-stepper">
-                        <button
-                          type="button"
-                          className="stepper-btn"
-                          onClick={() => onUpdateRoomQty(room.id, Math.max(1, qty - 1))}
-                          disabled={qty <= 1}
-                        >
-                          <Minus size={12} />
-                        </button>
-                        <span className="stepper-val">{qty}</span>
-                        <button
-                          type="button"
-                          className="stepper-btn"
-                          onClick={() => onUpdateRoomQty(room.id, qty + 1)}
-                        >
-                          <Plus size={12} />
-                        </button>
+                        {/* Nights */}
+                        <div className="clean-stepper-group">
+                          <span className="stepper-label">{t?.nights || "Nights"}:</span>
+                          <div className="clean-stepper">
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => onUpdateRoomNights(room.id, Math.max(1, nights - 1))}
+                              disabled={nights <= 1}
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span className="stepper-val">{nights}</span>
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => onUpdateRoomNights(room.id, nights + 1)}
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Nights */}
-                    <div className="clean-stepper-group">
-                      <span className="stepper-label">{t?.nights || "Nights"}:</span>
-                      <div className="clean-stepper">
-                        <button
-                          type="button"
-                          className="stepper-btn"
-                          onClick={() => onUpdateRoomNights(room.id, Math.max(1, nights - 1))}
-                          disabled={nights <= 1}
-                        >
-                          <Minus size={12} />
-                        </button>
-                        <span className="stepper-val">{nights}</span>
-                        <button
-                          type="button"
-                          className="stepper-btn"
-                          onClick={() => onUpdateRoomNights(room.id, nights + 1)}
-                        >
-                          <Plus size={12} />
-                        </button>
+                      <div className="clean-subtotal-val">
+                        Subtotal: <strong>${cost}</strong>
                       </div>
                     </div>
                   </div>
-
-                  <div className="clean-subtotal-val">
-                    Subtotal: <strong>${cost}</strong>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       {/* Image Preview Modal */}

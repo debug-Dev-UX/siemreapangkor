@@ -98,4 +98,47 @@ export const INITIAL_SETTINGS = {
 
 export const INITIAL_COUPONS = [];
 
+export const INITIAL_BILLING_TYPES = [
+  {
+    id: "per-day",
+    name: "Per Day",
+    chargeMode: "per-day",
+    badgeColor: "#0f172a",
+    description: "Multiplied by rental duration (Days)",
+    isDefault: true,
+  },
+  {
+    id: "one-time",
+    name: "One-Time Fee",
+    chargeMode: "one-time",
+    badgeColor: "#475569",
+    description: "Fixed one-time charge regardless of duration",
+    isDefault: true,
+  },
+  {
+    id: "free",
+    name: "Free Inclusions",
+    chargeMode: "free",
+    badgeColor: "#059669",
+    description: "Complimentary inclusion ($0 total cost)",
+    isDefault: true,
+  },
+  {
+    id: "per-trip",
+    name: "Per Trip / Transfer",
+    chargeMode: "one-time",
+    badgeColor: "#2563eb",
+    description: "Single transfer service charge (Airport/Hotel shuttle)",
+    isDefault: false,
+  },
+  {
+    id: "deposit",
+    name: "Refundable Deposit",
+    chargeMode: "one-time",
+    badgeColor: "#d97706",
+    description: "Security deposit refundable upon return",
+    isDefault: false,
+  },
+];
+
 

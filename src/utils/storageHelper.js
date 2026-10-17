@@ -1,7 +1,14 @@
 import { storage, db } from "../firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
-import { INITIAL_ROOMS, INITIAL_MOTOS, INITIAL_SETTINGS, INITIAL_ADDONS, INITIAL_COUPONS } from "../data/initialData";
+import {
+  INITIAL_ROOMS,
+  INITIAL_MOTOS,
+  INITIAL_SETTINGS,
+  INITIAL_ADDONS,
+  INITIAL_COUPONS,
+  INITIAL_BILLING_TYPES,
+} from "../data/initialData";
 
 // Local storage keys (used as offline cache)
 const ROOMS_KEY = "siemreap_angkor_rooms_clean_v4";
@@ -10,6 +17,7 @@ const SETTINGS_KEY = "siemreap_angkor_settings_clean_v4";
 const ADDONS_KEY = "siemreap_angkor_addons_clean_v4";
 const INQUIRIES_KEY = "siemreap_angkor_inquiries_clean_v4";
 const COUPONS_KEY = "siemreap_angkor_coupons_clean_v4";
+const BILLING_TYPES_KEY = "siemreap_angkor_billing_types_clean_v4";
 
 // Firestore sync target
 const CLOUD_COLLECTION = "siemreap_angkor";
@@ -42,6 +50,7 @@ export function subscribeToCloudData(onUpdate) {
             if (cloudData.settings !== undefined) localStorage.setItem(SETTINGS_KEY, JSON.stringify(cloudData.settings));
             if (cloudData.addons !== undefined) localStorage.setItem(ADDONS_KEY, JSON.stringify(cloudData.addons));
             if (cloudData.coupons !== undefined) localStorage.setItem(COUPONS_KEY, JSON.stringify(cloudData.coupons));
+            if (cloudData.billingTypes !== undefined) localStorage.setItem(BILLING_TYPES_KEY, JSON.stringify(cloudData.billingTypes));
             if (cloudData.inquiries !== undefined) localStorage.setItem(INQUIRIES_KEY, JSON.stringify(cloudData.inquiries));
           } catch (e) {}
 
@@ -57,6 +66,7 @@ export function subscribeToCloudData(onUpdate) {
             settings: current.settings,
             addons: current.addons,
             coupons: current.coupons,
+            billingTypes: current.billingTypes,
             inquiries: current.inquiries,
             lastSyncedAt: new Date().toISOString(),
           });
@@ -82,6 +92,7 @@ export async function forcePushAllToCloud() {
     settings: current.settings,
     addons: current.addons,
     coupons: current.coupons,
+    billingTypes: current.billingTypes,
     inquiries: current.inquiries,
     lastSyncedAt: new Date().toISOString(),
   });
@@ -107,6 +118,8 @@ export function loadStoredData() {
   let motos = INITIAL_MOTOS;
   let settings = INITIAL_SETTINGS;
   let addons = INITIAL_ADDONS;
+  let billingTypes = INITIAL_BILLING_TYPES;
+  let coupons = INITIAL_COUPONS;
   let inquiries = [];
 
   try {
@@ -150,7 +163,14 @@ export function loadStoredData() {
     console.error("Failed to parse addons", e);
   }
 
-  let coupons = INITIAL_COUPONS;
+  try {
+    const storedBillingTypes = localStorage.getItem(BILLING_TYPES_KEY);
+    if (storedBillingTypes !== null) {
+      billingTypes = JSON.parse(storedBillingTypes);
+    }
+  } catch (e) {
+    console.error("Failed to parse billingTypes", e);
+  }
 
   try {
     const storedCoupons = localStorage.getItem(COUPONS_KEY);
@@ -170,7 +190,7 @@ export function loadStoredData() {
     console.error("Failed to parse inquiries", e);
   }
 
-  return { rooms, motos, settings, addons, inquiries, coupons };
+  return { rooms, motos, settings, addons, inquiries, coupons, billingTypes };
 }
 
 export function saveRooms(rooms) {
@@ -208,14 +228,85 @@ export function saveCoupons(coupons) {
   syncToCloud({ coupons });
 }
 
+export function saveBillingTypes(billingTypes) {
+  try {
+    localStorage.setItem(BILLING_TYPES_KEY, JSON.stringify(billingTypes));
+  } catch (e) {}
+  syncToCloud({ billingTypes });
+}
+
+// Calculate cost of an add-on item dynamically based on its billing type
+export function calculateAddonCost(addon, days = 1, billingTypes = []) {
+  if (!addon) return 0;
+  const price = Number(addon.price) || 0;
+  if (price === 0) return 0;
+  const bType = billingTypes.find((b) => b.id === addon.type);
+  const chargeMode = bType ? bType.chargeMode : (addon.type === "per-day" ? "per-day" : (addon.type === "free" ? "free" : "one-time"));
+  if (chargeMode === "free") return 0;
+  if (chargeMode === "per-day") return price * (Number(days) || 1);
+  return price;
+}
+
+export function getBillingTypeLabel(typeId, billingTypes = []) {
+  const b = billingTypes.find((item) => item.id === typeId);
+  if (b) return b.name;
+  if (typeId === "per-day") return "Per Day";
+  if (typeId === "free") return "Free Inclusions";
+  return "One-Time";
+}
+
 export function saveInquiry(inquiry) {
   const current = loadStoredData().inquiries;
-  const updated = [inquiry, ...current.slice(0, 49)];
+  const normalizedInquiry = {
+    ...inquiry,
+    status: inquiry.status || "pending",
+  };
+  const updated = [normalizedInquiry, ...current.slice(0, 99)];
   try {
     localStorage.setItem(INQUIRIES_KEY, JSON.stringify(updated));
   } catch (e) {}
   syncToCloud({ inquiries: updated });
   return updated;
+}
+
+export function saveInquiries(inquiries) {
+  try {
+    localStorage.setItem(INQUIRIES_KEY, JSON.stringify(inquiries));
+  } catch (e) {}
+  syncToCloud({ inquiries });
+  return inquiries;
+}
+
+export function updateInquiry(quoteId, updates) {
+  const current = loadStoredData().inquiries;
+  const updated = current.map((inq) => {
+    if (inq.quoteId === quoteId) {
+      return { ...inq, ...updates, updatedAt: new Date().toISOString() };
+    }
+    return inq;
+  });
+  saveInquiries(updated);
+  return updated;
+}
+
+export function deleteInquiry(quoteId) {
+  const current = loadStoredData().inquiries;
+  const updated = current.filter((inq) => inq.quoteId !== quoteId);
+  saveInquiries(updated);
+  return updated;
+}
+
+export function deleteMultipleInquiries(quoteIds = []) {
+  const current = loadStoredData().inquiries;
+  const set = new Set(quoteIds);
+  const updated = current.filter((inq) => !set.has(inq.quoteId));
+  saveInquiries(updated);
+  return updated;
+}
+
+export function clearInquiries() {
+  saveInquiries([]);
+  return [];
 }
 
 export function clearAllData() {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Lock,
@@ -26,8 +26,20 @@ import {
   Search,
   Filter,
   ArrowUpDown,
+  Receipt,
+  FileSpreadsheet,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  FileText,
+  Calendar,
+  Layers,
+  Coins,
+  Share2,
 } from "lucide-react";
 import logoImg from "../assets/logo.png";
+import VoucherSlipModal from "../components/VoucherSlipModal";
+import { INITIAL_BILLING_TYPES } from "../data/initialData";
 import {
   loadStoredData,
   saveRooms,
@@ -35,6 +47,12 @@ import {
   saveAddons,
   saveSettings,
   saveCoupons,
+  saveBillingTypes,
+  saveInquiries,
+  updateInquiry,
+  deleteInquiry,
+  deleteMultipleInquiries,
+  clearInquiries,
   convertFileToBinaryDataUrl,
   subscribeToCloudData,
   forcePushAllToCloud,
@@ -46,8 +64,9 @@ export default function AdminPage() {
   const [motos, setMotos] = useState(data.motos);
   const [addons, setAddons] = useState(data.addons || []);
   const [settings, setSettings] = useState(data.settings);
-  const [inquiries, setInquiries] = useState(data.inquiries);
+  const [inquiries, setInquiries] = useState(data.inquiries || []);
   const [coupons, setCoupons] = useState(data.coupons || []);
+  const [billingTypes, setBillingTypes] = useState(data.billingTypes || INITIAL_BILLING_TYPES);
 
   // Listen for real-time live updates from Cloud Firestore across all devices
   useEffect(() => {
@@ -58,6 +77,7 @@ export default function AdminPage() {
       if (cloud.settings !== undefined) setSettings((prev) => ({ ...prev, ...cloud.settings }));
       if (cloud.inquiries !== undefined) setInquiries(cloud.inquiries);
       if (cloud.coupons !== undefined) setCoupons(cloud.coupons);
+      if (cloud.billingTypes !== undefined) setBillingTypes(cloud.billingTypes);
     });
     return () => unsubscribe();
   }, []);
@@ -72,7 +92,7 @@ export default function AdminPage() {
     }
   });
   const [pinError, setPinError] = useState("");
-  const [activeTab, setActiveTab] = useState("rooms"); // rooms, motos, addons, coupons, settings, inquiries
+  const [activeTab, setActiveTab] = useState("rooms"); // rooms, motos, addons, billing-types, coupons, settings, inquiries
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Sorting & Filtering States across inventory & coupons
@@ -91,8 +111,28 @@ export default function AdminPage() {
   const [motoSort, setMotoSort] = useState("price-asc");
   const [motoSearch, setMotoSearch] = useState("");
 
-  const [inquiryFilter, setInquiryFilter] = useState("all");
-  const [inquirySort, setInquirySort] = useState("newest");
+  // Customer Inquiry Logs Filter Shot & Search States
+  const [inquirySearch, setInquirySearch] = useState("");
+  const [inquiryFilterShot, setInquiryFilterShot] = useState("all"); // "all", "pending", "confirmed", "in-progress", "completed", "cancelled", "today", "moto", "room", "extra", "high-value"
+  const [inquiryDateRange, setInquiryDateRange] = useState("all"); // "all", "today", "7days", "month"
+  const [inquirySort, setInquirySort] = useState("newest"); // "newest", "oldest", "total-desc", "total-asc", "days-desc", "status"
+  const [selectedInquiryIds, setSelectedInquiryIds] = useState([]);
+  const [viewingInquiry, setViewingInquiry] = useState(null);
+  const [voucherModalInquiry, setVoucherModalInquiry] = useState(null);
+  const [editingNotesId, setEditingNotesId] = useState(null);
+  const [adminNotesText, setAdminNotesText] = useState("");
+  const [customerNameEdit, setCustomerNameEdit] = useState("");
+  const [customerPhoneEdit, setCustomerPhoneEdit] = useState("");
+
+  // Billing Types state
+  const [editingBillingType, setEditingBillingType] = useState(null); // null | "new" | typeId
+  const [billingTypeForm, setBillingTypeForm] = useState({
+    id: "",
+    name: "",
+    chargeMode: "per-day",
+    badgeColor: "#0f172a",
+    description: "",
+  });
 
   // Room Edit/Add state
   const [editingRoom, setEditingRoom] = useState(null);
@@ -196,6 +236,213 @@ export default function AdminPage() {
       saveAddons(updated);
     }
   };
+
+  // BILLING TYPES ACTIONS & CONTROLS
+  const handleOpenBillingTypeForm = (bt = null) => {
+    if (bt) {
+      setEditingBillingType(bt.id);
+      setBillingTypeForm({
+        id: bt.id,
+        name: bt.name,
+        chargeMode: bt.chargeMode || "one-time",
+        badgeColor: bt.badgeColor || "#0f172a",
+        description: bt.description || "",
+      });
+    } else {
+      setEditingBillingType("new");
+      setBillingTypeForm({
+        id: "",
+        name: "",
+        chargeMode: "one-time",
+        badgeColor: "#2563eb",
+        description: "",
+      });
+    }
+  };
+
+  const handleSaveBillingType = (e) => {
+    e.preventDefault();
+    const slug = (billingTypeForm.id || billingTypeForm.name)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    const typeId = editingBillingType === "new" ? (slug || "billing-" + Date.now()) : billingTypeForm.id;
+
+    if (editingBillingType === "new" && billingTypes.some((b) => b.id === typeId)) {
+      alert(`A billing type with ID "${typeId}" already exists. Please choose a different name.`);
+      return;
+    }
+
+    const formatted = {
+      id: typeId,
+      name: billingTypeForm.name.trim(),
+      chargeMode: billingTypeForm.chargeMode,
+      badgeColor: billingTypeForm.badgeColor || "#475569",
+      description: billingTypeForm.description.trim(),
+      isDefault: editingBillingType === "new" ? false : Boolean(billingTypes.find((b) => b.id === typeId)?.isDefault),
+    };
+
+    let updated;
+    if (editingBillingType === "new") {
+      updated = [...billingTypes, formatted];
+    } else {
+      updated = billingTypes.map((b) => (b.id === editingBillingType ? formatted : b));
+    }
+    setBillingTypes(updated);
+    saveBillingTypes(updated);
+    setEditingBillingType(null);
+  };
+
+  const handleDeleteBillingType = (id) => {
+    const affectedAddons = addons.filter((a) => a.type === id);
+    let confirmMsg = `Are you sure you want to delete this billing type?`;
+    if (affectedAddons.length > 0) {
+      confirmMsg += `\n\nNotice: ${affectedAddons.length} add-on service(s) currently use this billing type and will be automatically reassigned to "One-Time Fee".`;
+    }
+    if (window.confirm(confirmMsg)) {
+      const updated = billingTypes.filter((b) => b.id !== id);
+      setBillingTypes(updated);
+      saveBillingTypes(updated);
+
+      if (affectedAddons.length > 0) {
+        const updatedAddons = addons.map((a) => (a.type === id ? { ...a, type: "one-time" } : a));
+        setAddons(updatedAddons);
+        saveAddons(updatedAddons);
+      }
+    }
+  };
+
+  const handleResetBillingTypes = () => {
+    if (window.confirm("Reset all billing types back to system defaults?")) {
+      setBillingTypes(INITIAL_BILLING_TYPES);
+      saveBillingTypes(INITIAL_BILLING_TYPES);
+    }
+  };
+
+  // CUSTOMER INQUIRY LOGS ACTIONS & CONTROLS
+  const handleUpdateInquiryStatus = (quoteId, newStatus) => {
+    const updated = updateInquiry(quoteId, { status: newStatus });
+    setInquiries(updated);
+    if (viewingInquiry && viewingInquiry.quoteId === quoteId) {
+      setViewingInquiry((prev) => ({ ...prev, status: newStatus }));
+    }
+  };
+
+  const handleOpenInquiryDetails = (inq) => {
+    setViewingInquiry(inq);
+    setEditingNotesId(inq.quoteId);
+    setAdminNotesText(inq.adminNotes || "");
+    setCustomerNameEdit(inq.customerName || "");
+    setCustomerPhoneEdit(inq.customerPhone || "");
+  };
+
+  const handleSaveInquiryNotes = (quoteId) => {
+    const updated = updateInquiry(quoteId, {
+      adminNotes: adminNotesText,
+      customerName: customerNameEdit,
+      customerPhone: customerPhoneEdit,
+    });
+    setInquiries(updated);
+    if (viewingInquiry && viewingInquiry.quoteId === quoteId) {
+      setViewingInquiry((prev) => ({
+        ...prev,
+        adminNotes: adminNotesText,
+        customerName: customerNameEdit,
+        customerPhone: customerPhoneEdit,
+      }));
+    }
+    alert("Inquiry notes and customer details updated!");
+  };
+
+  const handleDeleteSingleInquiry = (quoteId) => {
+    if (window.confirm(`Delete inquiry quote #${quoteId}? This cannot be undone.`)) {
+      const updated = deleteInquiry(quoteId);
+      setInquiries(updated);
+      setSelectedInquiryIds((prev) => prev.filter((id) => id !== quoteId));
+      if (viewingInquiry && viewingInquiry.quoteId === quoteId) {
+        setViewingInquiry(null);
+      }
+    }
+  };
+
+  const handleToggleSelectInquiry = (quoteId) => {
+    setSelectedInquiryIds((prev) =>
+      prev.includes(quoteId) ? prev.filter((id) => id !== quoteId) : [...prev, quoteId]
+    );
+  };
+
+  const handleSelectAllInquiries = () => {
+    if (selectedInquiryIds.length === displayedInquiries.length && displayedInquiries.length > 0) {
+      setSelectedInquiryIds([]);
+    } else {
+      setSelectedInquiryIds(displayedInquiries.map((i) => i.quoteId));
+    }
+  };
+
+  const handleDeleteSelectedInquiries = () => {
+    if (selectedInquiryIds.length === 0) return;
+    if (window.confirm(`Permanently delete ${selectedInquiryIds.length} selected inquiry logs?`)) {
+      const updated = deleteMultipleInquiries(selectedInquiryIds);
+      setInquiries(updated);
+      setSelectedInquiryIds([]);
+    }
+  };
+
+  const handleBulkStatusChange = (newStatus) => {
+    if (selectedInquiryIds.length === 0) return;
+    const current = loadStoredData().inquiries;
+    const set = new Set(selectedInquiryIds);
+    const updated = current.map((i) => (set.has(i.quoteId) ? { ...i, status: newStatus, updatedAt: new Date().toISOString() } : i));
+    saveInquiries(updated);
+    setInquiries(updated);
+    setSelectedInquiryIds([]);
+  };
+
+  const handleClearAllInquiries = () => {
+    if (inquiries.length === 0) return;
+    if (window.confirm("Are you sure you want to permanently clear ALL customer inquiry logs?")) {
+      clearInquiries();
+      setInquiries([]);
+      setSelectedInquiryIds([]);
+      setViewingInquiry(null);
+    }
+  };
+
+  const handleExportInquiriesCSV = () => {
+    if (displayedInquiries.length === 0) {
+      alert("No inquiries to export!");
+      return;
+    }
+    const headers = ["Quote ID", "Status", "Created At", "Start Date", "End Date", "Days", "Room", "Motorbike", "Addons", "Total USD", "Total KHR", "Customer Name", "Customer Phone", "Admin Notes"];
+    const rows = displayedInquiries.map((i) => [
+      `"${i.quoteId || ""}"`,
+      `"${i.status || "pending"}"`,
+      `"${i.createdAt || ""}"`,
+      `"${i.startDate || ""}"`,
+      `"${i.endDate || ""}"`,
+      `"${i.tripDays || i.days || 1}"`,
+      `"${(i.roomName || "").replace(/"/g, '""')}"`,
+      `"${(i.motoName || "").replace(/"/g, '""')}"`,
+      `"${(i.addons ? i.addons.map((a) => `${a.name} (x${a.qty})`).join("; ") : "").replace(/"/g, '""')}"`,
+      `"${i.totalUSD || 0}"`,
+      `"${i.totalKHR || 0}"`,
+      `"${(i.customerName || "").replace(/"/g, '""')}"`,
+      `"${(i.customerPhone || "").replace(/"/g, '""')}"`,
+      `"${(i.adminNotes || "").replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `siemreap_angkor_inquiries_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   // Cloud force sync state
   const [cloudSyncing, setCloudSyncing] = useState(false);
@@ -577,19 +824,86 @@ export default function AdminPage() {
       return (a.name || "").localeCompare(b.name || "");
     });
 
-  // Filtered & Sorted Inquiries
-  const displayedInquiries = inquiries
-    .filter((inq) => {
-      if (inquiryFilter === "with-room" && !inq.roomName) return false;
-      if (inquiryFilter === "with-moto" && !inq.motoName) return false;
-      if (inquiryFilter === "with-extra" && (!inq.addons || inq.addons.length === 0)) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      if (inquirySort === "oldest") return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
-      if (inquirySort === "total-desc") return Number(b.totalUSD || 0) - Number(a.totalUSD || 0);
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    });
+  // Inquiry Counter calculations for interactive Filter Shot Badges
+  const inquiryCounts = useMemo(() => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    return {
+      all: inquiries.length,
+      pending: inquiries.filter((i) => (i.status || "pending") === "pending").length,
+      confirmed: inquiries.filter((i) => i.status === "confirmed").length,
+      inProgress: inquiries.filter((i) => i.status === "in-progress").length,
+      completed: inquiries.filter((i) => i.status === "completed").length,
+      cancelled: inquiries.filter((i) => i.status === "cancelled").length,
+      today: inquiries.filter((i) => (i.createdAt ? i.createdAt.split("T")[0] : i.startDate) === todayStr).length,
+      moto: inquiries.filter((i) => i.motoName || (i.selectedMotoItems && i.selectedMotoItems.length > 0)).length,
+      room: inquiries.filter((i) => i.roomName || (i.selectedRoomItems && i.selectedRoomItems.length > 0)).length,
+      extra: inquiries.filter((i) => (i.addons && i.addons.length > 0) || (i.selectedAddonItems && i.selectedAddonItems.length > 0)).length,
+      highValue: inquiries.filter((i) => Number(i.totalUSD || 0) >= 50).length,
+    };
+  }, [inquiries]);
+
+  // Filtered & Sorted Inquiries with Feature Filter Shot
+  const displayedInquiries = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    return inquiries
+      .filter((inq) => {
+        const status = inq.status || "pending";
+        if (inquiryFilterShot === "pending" && status !== "pending") return false;
+        if (inquiryFilterShot === "confirmed" && status !== "confirmed") return false;
+        if (inquiryFilterShot === "in-progress" && status !== "in-progress") return false;
+        if (inquiryFilterShot === "completed" && status !== "completed") return false;
+        if (inquiryFilterShot === "cancelled" && status !== "cancelled") return false;
+        if (inquiryFilterShot === "moto" && !inq.motoName && (!inq.selectedMotoItems || inq.selectedMotoItems.length === 0)) return false;
+        if (inquiryFilterShot === "room" && !inq.roomName && (!inq.selectedRoomItems || inq.selectedRoomItems.length === 0)) return false;
+        if (inquiryFilterShot === "extra" && (!inq.addons || inq.addons.length === 0) && (!inq.selectedAddonItems || inq.selectedAddonItems.length === 0)) return false;
+        if (inquiryFilterShot === "high-value" && Number(inq.totalUSD || 0) < 50) return false;
+        if (inquiryFilterShot === "today") {
+          const inqDate = inq.createdAt ? inq.createdAt.split("T")[0] : inq.startDate;
+          if (inqDate !== todayStr) return false;
+        }
+
+        // Date range
+        if (inquiryDateRange === "today") {
+          const inqDate = inq.createdAt ? inq.createdAt.split("T")[0] : inq.startDate;
+          if (inqDate !== todayStr) return false;
+        } else if (inquiryDateRange === "7days") {
+          const created = new Date(inq.createdAt || inq.startDate || 0);
+          if (created < sevenDaysAgo) return false;
+        } else if (inquiryDateRange === "month") {
+          const created = new Date(inq.createdAt || inq.startDate || 0);
+          if (created < firstDayOfMonth) return false;
+        }
+
+        // Search query
+        if (inquirySearch.trim()) {
+          const q = inquirySearch.toLowerCase().trim();
+          const matchQuote = (inq.quoteId || "").toLowerCase().includes(q);
+          const matchRoom = (inq.roomName || "").toLowerCase().includes(q);
+          const matchMoto = (inq.motoName || "").toLowerCase().includes(q);
+          const matchNotes = (inq.adminNotes || "").toLowerCase().includes(q);
+          const matchCustomer = (inq.customerName || inq.customerPhone || "").toLowerCase().includes(q);
+          const matchCoupon = (inq.couponCode || "").toLowerCase().includes(q);
+          const matchAddon = inq.addons && inq.addons.some((a) => (a.name || "").toLowerCase().includes(q));
+          if (!matchQuote && !matchRoom && !matchMoto && !matchNotes && !matchCustomer && !matchCoupon && !matchAddon) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (inquirySort === "oldest") return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        if (inquirySort === "total-desc") return Number(b.totalUSD || 0) - Number(a.totalUSD || 0);
+        if (inquirySort === "total-asc") return Number(a.totalUSD || 0) - Number(b.totalUSD || 0);
+        if (inquirySort === "days-desc") return Number(b.tripDays || b.days || 0) - Number(a.tripDays || a.days || 0);
+        if (inquirySort === "status") return (a.status || "pending").localeCompare(b.status || "pending");
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      });
+  }, [inquiries, inquiryFilterShot, inquiryDateRange, inquirySearch, inquirySort]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
@@ -773,6 +1087,17 @@ export default function AdminPage() {
               </button>
 
               <button
+                className={`admin-sidebar-btn ${activeTab === "billing-types" ? "is-active" : ""}`}
+                onClick={() => { setActiveTab("billing-types"); setSidebarOpen(false); }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Receipt size={18} />
+                  <span>Billing Types</span>
+                </div>
+                <span className="admin-badge-count">{billingTypes.length}</span>
+              </button>
+
+              <button
                 className={`admin-sidebar-btn ${activeTab === "coupons" ? "is-active" : ""}`}
                 onClick={() => { setActiveTab("coupons"); setSidebarOpen(false); }}
               >
@@ -868,9 +1193,10 @@ export default function AdminPage() {
                     {activeTab === "rooms" && "Rooms Management"}
                     {activeTab === "motos" && "Motorbike Inventory"}
                     {activeTab === "addons" && "Add-on Services"}
+                    {activeTab === "billing-types" && "Dynamic Billing Types & Calculation Modes"}
                     {activeTab === "coupons" && "Coupons & Discounts"}
                     {activeTab === "settings" && "Telegram & Pricing Settings"}
-                    {activeTab === "inquiries" && "Customer Inquiry Logs"}
+                    {activeTab === "inquiries" && "Customer Inquiry Logs & Filters"}
                   </h1>
                 </div>
               </div>
@@ -1568,10 +1894,21 @@ export default function AdminPage() {
                           Manage free inclusions and paid accessories. Filter by Free/Paid or sort by price.
                         </div>
                       </div>
-                      <button className="btn-primary" onClick={() => handleOpenAddonForm(null)}>
-                        <Plus size={16} />
-                        <span>Add New Add-on</span>
-                      </button>
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => setActiveTab("billing-types")}
+                          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                        >
+                          <Receipt size={16} />
+                          <span>Manage Billing Types ({billingTypes.length})</span>
+                        </button>
+                        <button className="btn-primary" onClick={() => handleOpenAddonForm(null)}>
+                          <Plus size={16} />
+                          <span>Add New Add-on</span>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Filter & Sort Bar */}
@@ -1599,6 +1936,13 @@ export default function AdminPage() {
                           <option value="all">All Types ({addons.length})</option>
                           <option value="free">Free Inclusions Only</option>
                           <option value="paid">Paid Extras Only</option>
+                          <optgroup label="Dynamic Billing Types">
+                            {billingTypes.map((bt) => (
+                              <option key={bt.id} value={bt.id}>
+                                {bt.name} ({addons.filter((a) => a.type === bt.id).length})
+                              </option>
+                            ))}
+                          </optgroup>
                         </select>
                       </div>
 
@@ -1661,9 +2005,16 @@ export default function AdminPage() {
                                   </span>
                                 </td>
                                 <td>
-                                  <span className="badge-sale" style={{ background: addon.type === "per-day" ? "#0f172a" : "#475569" }}>
-                                    {addon.type === "per-day" ? "Per Day" : "One-Time"}
-                                  </span>
+                                  {(() => {
+                                    const bt = billingTypes.find((b) => b.id === addon.type);
+                                    const bg = bt?.badgeColor || (addon.type === "per-day" ? "#0f172a" : (addon.type === "free" ? "#059669" : "#475569"));
+                                    const label = bt?.name || (addon.type === "per-day" ? "Per Day" : (addon.type === "free" ? "Free" : "One-Time"));
+                                    return (
+                                      <span className="badge-sale" style={{ background: bg, color: "#ffffff", padding: "4px 8px", borderRadius: "6px" }}>
+                                        {label}
+                                      </span>
+                                    );
+                                  })()}
                                 </td>
                                 <td>
                                   <div style={{ fontSize: "0.8rem", color: "#64748b", maxWidth: "340px" }}>
@@ -1731,22 +2082,35 @@ export default function AdminPage() {
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                       <div>
-                        <label className="date-label">Billing Type</label>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                          <label className="date-label" style={{ margin: 0 }}>Billing Type</label>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("billing-types")}
+                            style={{ background: "none", border: "none", color: "#2563eb", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}
+                          >
+                            + Manage Types
+                          </button>
+                        </div>
                         <select
                           className="input-field"
                           value={addonForm.type}
                           onChange={(e) => {
                             const newType = e.target.value;
+                            const bt = billingTypes.find((b) => b.id === newType);
+                            const isFree = (bt && bt.chargeMode === "free") || newType === "free";
                             setAddonForm({
                               ...addonForm,
                               type: newType,
-                              price: newType === "free" ? 0 : (Number(addonForm.price) === 0 ? 5 : addonForm.price),
+                              price: isFree ? 0 : (Number(addonForm.price) === 0 ? 5 : addonForm.price),
                             });
                           }}
                         >
-                          <option value="one-time">One-Time Fee (e.g. Airport Shuttle, SIM card)</option>
-                          <option value="per-day">Per Day (multiplied by rental days, e.g. Extra Helmet)</option>
-                          <option value="free">Free Inclusions (e.g. Temple Route Map, Free Helmet)</option>
+                          {billingTypes.map((bt) => (
+                            <option key={bt.id} value={bt.id}>
+                              {bt.name} ({bt.chargeMode === "per-day" ? "Daily Multiplier" : bt.chargeMode === "free" ? "Complimentary Free" : "Flat One-Time"})
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -1810,6 +2174,310 @@ export default function AdminPage() {
                     <button type="submit" className="btn-primary" style={{ alignSelf: "flex-end" }}>
                       Save Add-on Service
                     </button>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {/* TAB: BILLING TYPES (DYNAMIC CREATE & FULL CONTROL) */}
+            {activeTab === "billing-types" && (
+              <div>
+                {!editingBillingType ? (
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#0f172a" }}>
+                          Dynamic Billing Types & Calculation Modes
+                        </div>
+                        <div style={{ fontSize: "0.82rem", color: "#64748b" }}>
+                          Admin full control to dynamically create, customize, and manage billing categories for add-ons and extra services.
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={handleResetBillingTypes}
+                          style={{ fontSize: "0.82rem" }}
+                        >
+                          <RotateCcw size={14} />
+                          <span>Reset Defaults</span>
+                        </button>
+                        <button className="btn-primary" onClick={() => handleOpenBillingTypeForm(null)}>
+                          <Plus size={16} />
+                          <span>Create Billing Type</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Summary Metric Cards */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "20px" }}>
+                      <div style={{ background: "#ffffff", padding: "14px 16px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>Total Billing Types</div>
+                        <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", marginTop: "2px" }}>{billingTypes.length}</div>
+                      </div>
+                      <div style={{ background: "#ffffff", padding: "14px 16px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                        <div style={{ fontSize: "0.75rem", color: "#0284c7", fontWeight: 700, textTransform: "uppercase" }}>Daily Multipliers</div>
+                        <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0284c7", marginTop: "2px" }}>
+                          {billingTypes.filter((b) => b.chargeMode === "per-day").length}
+                        </div>
+                      </div>
+                      <div style={{ background: "#ffffff", padding: "14px 16px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                        <div style={{ fontSize: "0.75rem", color: "#475569", fontWeight: 700, textTransform: "uppercase" }}>Flat One-Time</div>
+                        <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#475569", marginTop: "2px" }}>
+                          {billingTypes.filter((b) => b.chargeMode === "one-time").length}
+                        </div>
+                      </div>
+                      <div style={{ background: "#ffffff", padding: "14px 16px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                        <div style={{ fontSize: "0.75rem", color: "#059669", fontWeight: 700, textTransform: "uppercase" }}>Free Inclusions</div>
+                        <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#059669", marginTop: "2px" }}>
+                          {billingTypes.filter((b) => b.chargeMode === "free").length}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Billing Types Table */}
+                    <div style={{ overflowX: "auto" }}>
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Billing Type Name</th>
+                            <th>Slug / ID</th>
+                            <th>Calculation Formula</th>
+                            <th>Badge Theme</th>
+                            <th>Active Services</th>
+                            <th>Description</th>
+                            <th style={{ textAlign: "right" }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {billingTypes.map((bt) => {
+                            const usageCount = addons.filter((a) => a.type === bt.id).length;
+                            return (
+                              <tr key={bt.id}>
+                                <td>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <span
+                                      style={{
+                                        display: "inline-block",
+                                        width: "12px",
+                                        height: "12px",
+                                        borderRadius: "50%",
+                                        backgroundColor: bt.badgeColor || "#0f172a",
+                                      }}
+                                    />
+                                    <span style={{ fontWeight: 800, color: "#0f172a" }}>{bt.name}</span>
+                                  </div>
+                                </td>
+                                <td>
+                                  <code style={{ fontSize: "0.78rem", background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", color: "#334155" }}>
+                                    {bt.id}
+                                  </code>
+                                </td>
+                                <td>
+                                  <span
+                                    className="status-pill"
+                                    style={{
+                                      background: bt.chargeMode === "per-day" ? "#eff6ff" : (bt.chargeMode === "free" ? "#ecfdf5" : "#f8fafc"),
+                                      color: bt.chargeMode === "per-day" ? "#1d4ed8" : (bt.chargeMode === "free" ? "#047857" : "#334155"),
+                                      border: `1px solid ${bt.chargeMode === "per-day" ? "#bfdbfe" : (bt.chargeMode === "free" ? "#a7f3d0" : "#cbd5e1")}`,
+                                    }}
+                                  >
+                                    {bt.chargeMode === "per-day" ? "Price × Rental Days" : (bt.chargeMode === "free" ? "Free ($0.00)" : "Flat Fixed Rate")}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span
+                                    className="badge-sale"
+                                    style={{
+                                      backgroundColor: bt.badgeColor || "#0f172a",
+                                      color: "#ffffff",
+                                      padding: "4px 8px",
+                                      borderRadius: "6px",
+                                    }}
+                                  >
+                                    {bt.name}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span style={{ fontWeight: 700, color: usageCount > 0 ? "#0f172a" : "#94a3b8" }}>
+                                    {usageCount} {usageCount === 1 ? "service" : "services"}
+                                  </span>
+                                </td>
+                                <td>
+                                  <div style={{ fontSize: "0.8rem", color: "#64748b", maxWidth: "260px" }}>
+                                    {bt.description || "—"}
+                                  </div>
+                                </td>
+                                <td style={{ textAlign: "right" }}>
+                                  <button
+                                    className="btn-secondary"
+                                    onClick={() => handleOpenBillingTypeForm(bt)}
+                                    style={{ padding: "6px 10px", marginRight: "6px" }}
+                                    title="Edit Billing Type"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                  <button
+                                    className="btn-secondary"
+                                    onClick={() => handleDeleteBillingType(bt.id)}
+                                    style={{ padding: "6px 10px", color: "#ef4444" }}
+                                    title="Delete Billing Type"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  /* BILLING TYPE FORM (DYNAMIC CREATE / EDIT) */
+                  <form onSubmit={handleSaveBillingType} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <h3>{editingBillingType === "new" ? "Create Dynamic Billing Type" : "Edit Billing Type"}</h3>
+                        <p style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                          Define how prices are calculated for add-ons and extra services.
+                        </p>
+                      </div>
+                      <button type="button" className="btn-secondary" onClick={() => setEditingBillingType(null)}>
+                        Cancel
+                      </button>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                      <div>
+                        <label className="date-label">Billing Type Name</label>
+                        <input
+                          type="text"
+                          required
+                          className="input-field"
+                          value={billingTypeForm.name}
+                          onChange={(e) => setBillingTypeForm({ ...billingTypeForm, name: e.target.value })}
+                          placeholder="e.g. Airport Transfer, Per Week, Safety Deposit"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="date-label">Unique Slug / ID (Identifier)</label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={billingTypeForm.id}
+                          disabled={editingBillingType !== "new"}
+                          onChange={(e) => setBillingTypeForm({ ...billingTypeForm, id: e.target.value })}
+                          placeholder={editingBillingType === "new" ? "Auto-generated from name (e.g. airport-transfer)" : billingTypeForm.id}
+                        />
+                        {editingBillingType !== "new" && (
+                          <span style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                            Slug is locked while editing to preserve existing item references.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                      <div>
+                        <label className="date-label">Calculation Mode</label>
+                        <select
+                          className="input-field"
+                          value={billingTypeForm.chargeMode}
+                          onChange={(e) => setBillingTypeForm({ ...billingTypeForm, chargeMode: e.target.value })}
+                        >
+                          <option value="per-day">Daily Multiplier (Price × Total Rental Days)</option>
+                          <option value="one-time">Flat One-Time (Fixed price regardless of duration)</option>
+                          <option value="free">Complimentary Free ($0 Total Cost)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="date-label">Badge Theme Color</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <input
+                            type="color"
+                            value={billingTypeForm.badgeColor || "#0f172a"}
+                            onChange={(e) => setBillingTypeForm({ ...billingTypeForm, badgeColor: e.target.value })}
+                            style={{ width: "42px", height: "40px", border: "1px solid #cbd5e1", borderRadius: "8px", cursor: "pointer", padding: "2px" }}
+                          />
+                          <input
+                            type="text"
+                            className="input-field"
+                            value={billingTypeForm.badgeColor}
+                            onChange={(e) => setBillingTypeForm({ ...billingTypeForm, badgeColor: e.target.value })}
+                            placeholder="#0f172a"
+                            style={{ flex: 1 }}
+                          />
+                          <div style={{ display: "flex", gap: "4px" }}>
+                            {["#0f172a", "#2563eb", "#059669", "#d97706", "#7c3aed", "#e11d48"].map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => setBillingTypeForm({ ...billingTypeForm, badgeColor: c })}
+                                style={{
+                                  width: "24px",
+                                  height: "24px",
+                                  borderRadius: "50%",
+                                  backgroundColor: c,
+                                  border: billingTypeForm.badgeColor === c ? "2px solid #0f172a" : "1px solid #cbd5e1",
+                                  cursor: "pointer",
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="date-label">Description / Internal Notes</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        value={billingTypeForm.description}
+                        onChange={(e) => setBillingTypeForm({ ...billingTypeForm, description: e.target.value })}
+                        placeholder="e.g. Billed once upon hotel/airport greeting"
+                      />
+                    </div>
+
+                    {/* Live Badge Preview */}
+                    <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                      <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "8px" }}>
+                        Live Badge Preview on Customer Portal & Invoices:
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <span
+                          className="badge-sale"
+                          style={{
+                            backgroundColor: billingTypeForm.badgeColor || "#0f172a",
+                            color: "#ffffff",
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            fontWeight: 800,
+                            fontSize: "0.85rem",
+                          }}
+                        >
+                          {billingTypeForm.name || "Preview Badge"}
+                        </span>
+                        <span style={{ fontSize: "0.82rem", color: "#334155" }}>
+                          Calculation formula: <strong>
+                            {billingTypeForm.chargeMode === "per-day" ? "$Price × Trip Days" : (billingTypeForm.chargeMode === "free" ? "FREE ($0.00)" : "$Price (Flat Rate)")}
+                          </strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                      <button type="button" className="btn-secondary" onClick={() => setEditingBillingType(null)}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn-primary">
+                        {editingBillingType === "new" ? "Create Billing Type" : "Save Changes"}
+                      </button>
+                    </div>
                   </form>
                 )}
               </div>
@@ -2204,34 +2872,188 @@ export default function AdminPage() {
               </form>
             )}
 
-            {/* TAB 4: INQUIRIES LOG */}
+            {/* TAB 4: INQUIRIES LOG & FEATURE FILTER SHOT */}
             {activeTab === "inquiries" && (
               <div>
+                {/* Header & Main Controls */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#0f172a" }}>
-                      Customer Inquiry Logs
+                    <div style={{ fontWeight: 800, fontSize: "1.15rem", color: "#0f172a", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span>Customer Inquiry Logs & Bookings</span>
+                      <span className="chip-count" style={{ background: "#0f172a", color: "#ffffff", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem" }}>
+                        {inquiries.length} Total
+                      </span>
                     </div>
                     <div style={{ fontSize: "0.82rem", color: "#64748b" }}>
-                      Review incoming booking quotes, filtered by package components and sorted by date or value.
+                      Full control to track statuses, review itemized quotations, edit admin notes, filter & sort, and generate invoice slips.
                     </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={handleExportInquiriesCSV}
+                      disabled={displayedInquiries.length === 0}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.82rem" }}
+                      title="Download spreadsheet of all filtered inquiries"
+                    >
+                      <FileSpreadsheet size={15} color="#059669" />
+                      <span>Export CSV ({displayedInquiries.length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={handleClearAllInquiries}
+                      disabled={inquiries.length === 0}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", color: "#ef4444" }}
+                      title="Clear all inquiry records"
+                    >
+                      <Trash2 size={15} />
+                      <span>Clear All</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Filter & Sort Bar */}
-                <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", background: "#f8fafc", padding: "10px 14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                {/* FEATURE FILTER SHOT BAR (Interactive Quick Filter Chips with Live Counters) */}
+                <div style={{ marginBottom: "14px" }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
+                    Filter Shots:
+                  </div>
+                  <div className="filter-shot-bar">
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "all" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("all")}
+                    >
+                      <span>All Inquiries</span>
+                      <span className="chip-count">{inquiryCounts.all}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "pending" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("pending")}
+                    >
+                      <span style={{ color: inquiryFilterShot === "pending" ? "#ffffff" : "#d97706" }}>●</span>
+                      <span>Pending</span>
+                      <span className="chip-count">{inquiryCounts.pending}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "confirmed" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("confirmed")}
+                    >
+                      <span style={{ color: inquiryFilterShot === "confirmed" ? "#ffffff" : "#059669" }}>●</span>
+                      <span>Confirmed</span>
+                      <span className="chip-count">{inquiryCounts.confirmed}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "in-progress" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("in-progress")}
+                    >
+                      <span style={{ color: inquiryFilterShot === "in-progress" ? "#ffffff" : "#0284c7" }}>●</span>
+                      <span>In Progress</span>
+                      <span className="chip-count">{inquiryCounts.inProgress}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "completed" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("completed")}
+                    >
+                      <span style={{ color: inquiryFilterShot === "completed" ? "#ffffff" : "#7c3aed" }}>●</span>
+                      <span>Completed</span>
+                      <span className="chip-count">{inquiryCounts.completed}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "cancelled" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("cancelled")}
+                    >
+                      <span style={{ color: inquiryFilterShot === "cancelled" ? "#ffffff" : "#dc2626" }}>●</span>
+                      <span>Cancelled</span>
+                      <span className="chip-count">{inquiryCounts.cancelled}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "today" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("today")}
+                    >
+                      <span>📅 Today</span>
+                      <span className="chip-count">{inquiryCounts.today}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "moto" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("moto")}
+                    >
+                      <span>🛵 With Motorbike</span>
+                      <span className="chip-count">{inquiryCounts.moto}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "room" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("room")}
+                    >
+                      <span>🛏️ With Room</span>
+                      <span className="chip-count">{inquiryCounts.room}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "extra" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("extra")}
+                    >
+                      <span>🎁 With Extra Add-ons</span>
+                      <span className="chip-count">{inquiryCounts.extra}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "high-value" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("high-value")}
+                    >
+                      <span>💎 High Value ($50+)</span>
+                      <span className="chip-count">{inquiryCounts.highValue}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search & Secondary Filter / Sort Bar */}
+                <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", background: "#f8fafc", padding: "12px 14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ position: "relative", minWidth: "200px", flex: "1" }}>
+                    <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                    <input
+                      type="text"
+                      placeholder="Search Quote #, customer, room, moto, notes..."
+                      className="input-field"
+                      style={{ paddingLeft: "30px", paddingRight: "10px", height: "36px", fontSize: "0.82rem" }}
+                      value={inquirySearch}
+                      onChange={(e) => setInquirySearch(e.target.value)}
+                    />
+                  </div>
+
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <Filter size={14} color="#64748b" />
+                    <Calendar size={14} color="#64748b" />
                     <select
                       className="input-field"
                       style={{ height: "36px", padding: "4px 8px", fontSize: "0.82rem", width: "auto" }}
-                      value={inquiryFilter}
-                      onChange={(e) => setInquiryFilter(e.target.value)}
+                      value={inquiryDateRange}
+                      onChange={(e) => setInquiryDateRange(e.target.value)}
                     >
-                      <option value="all">All Inquiries ({inquiries.length})</option>
-                      <option value="with-room">With Room Booking</option>
-                      <option value="with-moto">With Motorbike Booking</option>
-                      <option value="with-extra">With Extra Services</option>
+                      <option value="all">All Dates</option>
+                      <option value="today">Today Only</option>
+                      <option value="7days">Last 7 Days</option>
+                      <option value="month">This Month</option>
                     </select>
                   </div>
 
@@ -2245,59 +3067,485 @@ export default function AdminPage() {
                     >
                       <option value="newest">Newest First</option>
                       <option value="oldest">Oldest First</option>
-                      <option value="total-desc">Highest Total Price</option>
+                      <option value="total-desc">Highest Price ($$$ → $)</option>
+                      <option value="total-asc">Lowest Price ($ → $$$)</option>
+                      <option value="days-desc">Longest Rental Duration</option>
+                      <option value="status">By Status</option>
                     </select>
                   </div>
+
+                  {(inquiryFilterShot !== "all" || inquirySearch.trim() || inquiryDateRange !== "all") && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        setInquiryFilterShot("all");
+                        setInquirySearch("");
+                        setInquiryDateRange("all");
+                      }}
+                      style={{ height: "36px", padding: "0 10px", fontSize: "0.8rem", color: "#64748b" }}
+                    >
+                      Clear Filters
+                    </button>
+                  )}
                 </div>
 
+                {/* Bulk Actions Bar */}
+                {displayedInquiries.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 14px",
+                      marginBottom: "12px",
+                      background: selectedInquiryIds.length > 0 ? "#eff6ff" : "#ffffff",
+                      border: selectedInquiryIds.length > 0 ? "1px solid #bfdbfe" : "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      flexWrap: "wrap",
+                      gap: "8px",
+                    }}
+                  >
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "0.82rem", fontWeight: 700, color: "#0f172a" }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedInquiryIds.length > 0 && selectedInquiryIds.length === displayedInquiries.length}
+                        onChange={handleSelectAllInquiries}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                      />
+                      <span>Select All ({displayedInquiries.length})</span>
+                    </label>
+
+                    {selectedInquiryIds.length > 0 && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#1d4ed8" }}>
+                          {selectedInquiryIds.length} selected:
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => handleBulkStatusChange("confirmed")}
+                          style={{ padding: "4px 8px", fontSize: "0.75rem", background: "#dcfce7", color: "#15803d", borderColor: "#bbf7d0" }}
+                        >
+                          Mark Confirmed
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => handleBulkStatusChange("completed")}
+                          style={{ padding: "4px 8px", fontSize: "0.75rem", background: "#f3e8ff", color: "#7e22ce", borderColor: "#e9d5ff" }}
+                        >
+                          Mark Completed
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={handleDeleteSelectedInquiries}
+                          style={{ padding: "4px 8px", fontSize: "0.75rem", color: "#b91c1c", background: "#fee2e2", borderColor: "#fecaca" }}
+                        >
+                          Delete Selected
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Inquiry Cards List */}
                 {displayedInquiries.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b", border: "1px dashed #cbd5e1", borderRadius: "8px" }}>
-                    {inquiries.length === 0
-                      ? "No recent inquiries recorded yet. When users submit quotes on /dashboard, they will appear here."
-                      : "No inquiries match your filter criteria. Try selecting \"All Inquiries\"."}
+                  <div style={{ textAlign: "center", padding: "48px 20px", color: "#64748b", border: "1px dashed #cbd5e1", borderRadius: "12px", background: "#ffffff" }}>
+                    <div style={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a", marginBottom: "4px" }}>
+                      No Customer Inquiries Found
+                    </div>
+                    <div style={{ fontSize: "0.85rem" }}>
+                      {inquiries.length === 0
+                        ? "Incoming quotes generated on /dashboard will automatically appear here with real-time sync."
+                        : "No logs match your filter criteria. Try clicking \"All Inquiries\" or clearing search terms."}
+                    </div>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                    {displayedInquiries.map((inq, index) => (
-                      <div
-                        key={inq.quoteId || index}
-                        style={{
-                          background: "#ffffff",
-                          padding: "16px 20px",
-                          borderRadius: "10px",
-                          border: "1px solid #e2e8f0",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                          gap: "10px",
-                          boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-                        }}
-                      >
+                    {displayedInquiries.map((inq, index) => {
+                      const status = inq.status || "pending";
+                      const isSelected = selectedInquiryIds.includes(inq.quoteId);
+                      const hasAddons = inq.addons && inq.addons.length > 0;
+                      const hasNotes = Boolean(inq.adminNotes?.trim());
+
+                      return (
+                        <div
+                          key={inq.quoteId || index}
+                          className={`inquiry-card ${isSelected ? "is-selected" : ""}`}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            flexWrap: "wrap",
+                            gap: "14px",
+                          }}
+                        >
+                          {/* Left: Checkbox + Quote Overview */}
+                          <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", flex: "1", minWidth: "280px" }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectInquiry(inq.quoteId)}
+                              style={{ marginTop: "4px", width: "16px", height: "16px", cursor: "pointer" }}
+                            />
+
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                                <span style={{ fontWeight: 800, color: "#0f172a", fontSize: "1.05rem", fontFamily: "var(--font-brand)" }}>
+                                  Quote #{inq.quoteId}
+                                </span>
+
+                                {/* Direct Status Changer */}
+                                <select
+                                  value={status}
+                                  onChange={(e) => handleUpdateInquiryStatus(inq.quoteId, e.target.value)}
+                                  className={`status-pill status-${status}`}
+                                  style={{
+                                    border: "none",
+                                    cursor: "pointer",
+                                    outline: "none",
+                                    fontWeight: 800,
+                                    fontSize: "0.75rem",
+                                  }}
+                                  title="Change inquiry booking status"
+                                >
+                                  <option value="pending">⏳ Pending</option>
+                                  <option value="confirmed">✅ Confirmed</option>
+                                  <option value="in-progress">🛵 In Progress</option>
+                                  <option value="completed">🏁 Completed</option>
+                                  <option value="cancelled">❌ Cancelled</option>
+                                </select>
+
+                                <span style={{ fontSize: "0.74rem", background: "#f1f5f9", padding: "2px 8px", borderRadius: "12px", color: "#475569", fontWeight: 700 }}>
+                                  {inq.tripDays || inq.days || 1} {(inq.tripDays || inq.days || 1) === 1 ? "day" : "days"}
+                                </span>
+
+                                {inq.couponCode && (
+                                  <span style={{ fontSize: "0.72rem", background: "#fef3c7", color: "#b45309", padding: "2px 8px", borderRadius: "12px", fontWeight: 700 }}>
+                                    Promo: {inq.couponCode}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Components breakdown */}
+                              <div style={{ fontSize: "0.85rem", color: "#334155", marginTop: "6px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                                {inq.motoName && (
+                                  <span style={{ background: "#f8fafc", padding: "3px 8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                                    🛵 {inq.motoName}
+                                  </span>
+                                )}
+                                {inq.roomName && (
+                                  <span style={{ background: "#f8fafc", padding: "3px 8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                                    🛏️ {inq.roomName}
+                                  </span>
+                                )}
+                                {hasAddons && (
+                                  <span style={{ background: "#f8fafc", padding: "3px 8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                                    🎁 {inq.addons.length} extra{inq.addons.length > 1 ? "s" : ""} ({inq.addons.map((a) => a.name).join(", ")})
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Dates & Timestamp */}
+                              <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "6px" }}>
+                                Dates: <strong>{inq.startDate} ({inq.startTime || "08:00"})</strong> → <strong>{inq.endDate} ({inq.endTime || "18:00"})</strong>
+                                {inq.createdAt && ` • Submitted: ${new Date(inq.createdAt).toLocaleString()}`}
+                              </div>
+
+                              {/* Customer info if recorded */}
+                              {(inq.customerName || inq.customerPhone) && (
+                                <div style={{ fontSize: "0.8rem", color: "#0f172a", marginTop: "4px", fontWeight: 600 }}>
+                                  👤 Customer: {inq.customerName || "Guest"} {inq.customerPhone ? `(${inq.customerPhone})` : ""}
+                                </div>
+                              )}
+
+                              {/* Admin Notes Preview */}
+                              {hasNotes && (
+                                <div style={{ fontSize: "0.78rem", color: "#0284c7", background: "#f0f9ff", padding: "4px 8px", borderRadius: "6px", marginTop: "6px", border: "1px solid #e0f2fe" }}>
+                                  📝 <strong>Admin Note:</strong> {inq.adminNotes}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Right: Price & Actions */}
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
+                            <div style={{ textAlign: "right" }}>
+                              <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.35rem", color: "#059669" }}>
+                                ${inq.totalUSD}
+                              </div>
+                              <div style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                                {inq.totalKHR?.toLocaleString()} KHR
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={() => setVoucherModalInquiry(inq)}
+                                style={{ padding: "5px 10px", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                                title="View & Download Invoice Slip"
+                              >
+                                <FileText size={13} color="#2563eb" />
+                                <span>View Slip</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={() => handleOpenInquiryDetails(inq)}
+                                style={{ padding: "5px 10px", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                                title="View itemized breakdown & edit notes"
+                              >
+                                <Edit2 size={13} />
+                                <span>Details & Notes</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={() => handleDeleteSingleInquiry(inq.quoteId)}
+                                style={{ padding: "5px 8px", color: "#ef4444" }}
+                                title="Delete this quote"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* MODAL 1: INQUIRY DETAILS & ADMIN NOTES MODAL */}
+                {viewingInquiry && (
+                  <div className="modal-overlay-backdrop" onClick={() => setViewingInquiry(null)}>
+                    <div className="admin-detail-modal" onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", borderBottom: "1px solid #e2e8f0" }}>
                         <div>
-                          <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "1rem" }}>
-                            Quote #{inq.quoteId}
+                          <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#0f172a" }}>
+                            Inquiry Quote #{viewingInquiry.quoteId}
                           </div>
-                          <div style={{ fontSize: "0.85rem", color: "#334155", marginTop: "3px" }}>
-                            {inq.roomName ? `Room: ${inq.roomName}` : "No Room"} • {inq.motoName ? `Moto: ${inq.motoName}` : "No Moto"}
-                            {inq.addons && inq.addons.length > 0 ? ` • ${inq.addons.length} Add-on${inq.addons.length > 1 ? "s" : ""}` : ""}
-                          </div>
-                          <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "3px" }}>
-                            Dates: {inq.startDate} → {inq.endDate} ({inq.days} days) • {inq.createdAt ? new Date(inq.createdAt).toLocaleString() : ""}
+                          <div style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                            Created: {viewingInquiry.createdAt ? new Date(viewingInquiry.createdAt).toLocaleString() : "—"}
                           </div>
                         </div>
 
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#059669" }}>
-                            ${inq.totalUSD}
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => setViewingInquiry(null)}
+                          style={{ padding: "6px", borderRadius: "50%" }}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                        {/* Status bar */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", padding: "10px 16px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                          <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#334155" }}>Booking Status:</span>
+                          <select
+                            value={viewingInquiry.status || "pending"}
+                            onChange={(e) => handleUpdateInquiryStatus(viewingInquiry.quoteId, e.target.value)}
+                            className={`status-pill status-${viewingInquiry.status || "pending"}`}
+                            style={{ border: "none", cursor: "pointer", fontWeight: 800, fontSize: "0.8rem" }}
+                          >
+                            <option value="pending">⏳ Pending</option>
+                            <option value="confirmed">✅ Confirmed</option>
+                            <option value="in-progress">🛵 In Progress</option>
+                            <option value="completed">🏁 Completed</option>
+                            <option value="cancelled">❌ Cancelled</option>
+                          </select>
+                        </div>
+
+                        {/* Customer Information (Editable) */}
+                        <div style={{ background: "#f8fafc", padding: "14px 16px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                          <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#0f172a", marginBottom: "8px" }}>
+                            Customer Contact Information:
                           </div>
-                          <div style={{ fontSize: "0.78rem", color: "#64748b" }}>
-                            {inq.totalKHR?.toLocaleString()} KHR
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            <div>
+                              <label className="date-label">Customer Name</label>
+                              <input
+                                type="text"
+                                className="input-field"
+                                value={customerNameEdit}
+                                onChange={(e) => setCustomerNameEdit(e.target.value)}
+                                placeholder="e.g. John Doe"
+                              />
+                            </div>
+                            <div>
+                              <label className="date-label">Phone / Telegram Handle</label>
+                              <input
+                                type="text"
+                                className="input-field"
+                                value={customerPhoneEdit}
+                                onChange={(e) => setCustomerPhoneEdit(e.target.value)}
+                                placeholder="e.g. +855 12 345 678 / @johndoe"
+                              />
+                            </div>
                           </div>
                         </div>
+
+                        {/* Schedule & Timing */}
+                        <div style={{ background: "#ffffff", padding: "12px 14px", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "0.82rem" }}>
+                          <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Schedule & Duration</div>
+                          <div style={{ color: "#475569" }}>
+                            From: <strong>{viewingInquiry.startDate} ({viewingInquiry.startTime || "08:00"})</strong>
+                          </div>
+                          <div style={{ color: "#475569" }}>
+                            To: <strong>{viewingInquiry.endDate} ({viewingInquiry.endTime || "18:00"})</strong>
+                          </div>
+                          <div style={{ color: "#0f172a", fontWeight: 700, marginTop: "4px" }}>
+                            Total Duration: {viewingInquiry.tripDays || viewingInquiry.days || 1} Days
+                          </div>
+                        </div>
+
+                        {/* Package Breakdown */}
+                        <div>
+                          <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0f172a", marginBottom: "8px" }}>
+                            Selected Items & Services Breakdown:
+                          </div>
+                          <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
+                            <table className="admin-table" style={{ margin: 0 }}>
+                              <thead>
+                                <tr>
+                                  <th>Item Description</th>
+                                  <th style={{ textAlign: "center" }}>Qty</th>
+                                  <th style={{ textAlign: "right" }}>Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {viewingInquiry.motoName && (
+                                  <tr>
+                                    <td>
+                                      <strong>🛵 Motorbike:</strong> {viewingInquiry.motoName}
+                                    </td>
+                                    <td style={{ textAlign: "center" }}>—</td>
+                                    <td style={{ textAlign: "right", fontWeight: 700 }}>Included</td>
+                                  </tr>
+                                )}
+                                {viewingInquiry.roomName && (
+                                  <tr>
+                                    <td>
+                                      <strong>🛏️ Room:</strong> {viewingInquiry.roomName}
+                                    </td>
+                                    <td style={{ textAlign: "center" }}>—</td>
+                                    <td style={{ textAlign: "right", fontWeight: 700 }}>Included</td>
+                                  </tr>
+                                )}
+                                {viewingInquiry.addons && viewingInquiry.addons.map((a, i) => (
+                                  <tr key={i}>
+                                    <td>
+                                      <strong>🎁 Extra:</strong> {a.name}
+                                    </td>
+                                    <td style={{ textAlign: "center" }}>x{a.qty || 1}</td>
+                                    <td style={{ textAlign: "right", fontWeight: 700, color: a.cost === 0 ? "#059669" : "#0f172a" }}>
+                                      {a.cost === 0 ? "FREE" : `$${a.cost || a.price}`}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Financial Totals */}
+                        <div style={{ background: "#f8fafc", padding: "14px 16px", borderRadius: "8px", border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ fontSize: "0.8rem", color: "#64748b" }}>Final Quote Amount:</div>
+                            <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "#059669" }}>
+                              ${viewingInquiry.totalUSD} USD
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: "0.8rem", color: "#64748b" }}>Exchange (KHR):</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0f172a" }}>
+                              {viewingInquiry.totalKHR?.toLocaleString()} ៛
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Internal Admin Notes (ABA reference, payment status, pickup notes) */}
+                        <div>
+                          <label className="date-label">
+                            Internal Admin Notes & Payment Records (Private to Admin)
+                          </label>
+                          <textarea
+                            className="input-field"
+                            rows={3}
+                            value={adminNotesText}
+                            onChange={(e) => setAdminNotesText(e.target.value)}
+                            placeholder="e.g. ABA Transaction #489291, 50% deposit received, requested airport pickup at 9am..."
+                            style={{ resize: "vertical", fontFamily: "inherit" }}
+                          />
+                        </div>
                       </div>
-                    ))}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => setVoucherModalInquiry(viewingInquiry)}
+                          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                        >
+                          <FileText size={15} color="#2563eb" />
+                          <span>View Invoice Slip</span>
+                        </button>
+
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => setViewingInquiry(null)}
+                          >
+                            Close
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            onClick={() => handleSaveInquiryNotes(viewingInquiry.quoteId)}
+                          >
+                            Save Details & Notes
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                )}
+
+                {/* MODAL 2: INVOICE VOUCHER SLIP PREVIEW & PNG DOWNLOAD */}
+                {voucherModalInquiry && (
+                  <VoucherSlipModal
+                    isOpen={Boolean(voucherModalInquiry)}
+                    onClose={() => setVoucherModalInquiry(null)}
+                    selectedRoomItems={
+                      voucherModalInquiry.selectedRoomItems ||
+                      (voucherModalInquiry.roomName ? [{ room: { name: voucherModalInquiry.roomName, pricePerNight: 0 }, qty: 1, nights: voucherModalInquiry.tripDays || 1, cost: 0 }] : [])
+                    }
+                    selectedMotoItems={
+                      voucherModalInquiry.selectedMotoItems ||
+                      (voucherModalInquiry.motoName ? [{ moto: { name: voucherModalInquiry.motoName, pricePerDay: 0 }, qty: 1, days: voucherModalInquiry.tripDays || 1, cost: 0 }] : [])
+                    }
+                    selectedAddonItems={
+                      voucherModalInquiry.selectedAddonItems ||
+                      (voucherModalInquiry.addons ? voucherModalInquiry.addons.map((a) => ({ addon: { name: a.name, price: a.price || 0, type: a.type }, qty: a.qty || 1, cost: a.cost || 0 })) : [])
+                    }
+                    startDate={voucherModalInquiry.startDate}
+                    endDate={voucherModalInquiry.endDate}
+                    startTime={voucherModalInquiry.startTime || "08:00"}
+                    endTime={voucherModalInquiry.endTime || "18:00"}
+                    settings={settings}
+                    quoteId={voucherModalInquiry.quoteId}
+                    appliedCoupon={voucherModalInquiry.couponCode ? { code: voucherModalInquiry.couponCode } : null}
+                    lang="en"
+                  />
                 )}
               </div>
             )}

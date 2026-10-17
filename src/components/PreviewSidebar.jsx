@@ -17,16 +17,25 @@ export default function PreviewSidebar({
   startDate,
   endDate,
   settings,
+  billingTypes = [],
   onCopyLink,
   onOpenVoucher,
   onSendTelegram,
   copied,
 }) {
+  const getAddonCost = (addon) => {
+    const bType = billingTypes.find((b) => b.id === addon.type);
+    const mode = bType ? bType.chargeMode : (addon.type === "per-day" ? "per-day" : (addon.type === "free" ? "free" : "one-time"));
+    if (mode === "free" || Number(addon.price) === 0) return 0;
+    if (mode === "per-day") return Number(addon.price) * days;
+    return Number(addon.price);
+  };
+
   const roomCost = selectedRoom ? selectedRoom.pricePerNight * days : 0;
   const motoCost = selectedMoto ? selectedMoto.pricePerDay * days : 0;
   
   const addonsCost = selectedAddons.reduce((sum, item) => {
-    return sum + (item.type === "per-day" ? item.price * days : item.price);
+    return sum + getAddonCost(item);
   }, 0);
 
   // Combo discount when both room and moto are booked
@@ -104,7 +113,7 @@ export default function PreviewSidebar({
           {selectedAddons.length > 0 && (
             <div style={{ borderTop: "1px dashed var(--border-subtle)", paddingTop: "8px" }}>
               {selectedAddons.map((addon) => {
-                const cost = addon.type === "per-day" ? addon.price * days : addon.price;
+                const cost = getAddonCost(addon);
                 return (
                   <div key={addon.id} className="preview-item-row" style={{ marginBottom: "4px" }}>
                     <div className="preview-item-label">

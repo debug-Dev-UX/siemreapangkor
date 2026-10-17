@@ -4,7 +4,7 @@ import logoImg from "../assets/logo.png";
 
 export default function Navbar({ onReset, settings, lang, onToggleLang, t }) {
   return (
-    <>
+    <div className="fixed-header-wrapper">
       {/* Top Zando-style announcement banner */}
       <div className="top-promo-bar">
         {settings?.topPromoText || t?.topPromo || "FREE 2 HELMETS & PHONE HOLDER WITH EVERY MOTORBIKE • INSTANT PREVIEW"}
@@ -67,6 +67,6 @@ export default function Navbar({ onReset, settings, lang, onToggleLang, t }) {
           </div>
         </div>
       </header>
-    </>
+    </div>
   );
 }

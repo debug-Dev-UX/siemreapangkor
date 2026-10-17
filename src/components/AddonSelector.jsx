@@ -17,6 +17,7 @@ export default function AddonSelector({
   addonQuantities = {},
   onUpdateAddonQty,
   days = 1,
+  billingTypes = [],
   lang = "kh",
   t,
 }) {
@@ -27,7 +28,21 @@ export default function AddonSelector({
 
   if (!addons || addons.length === 0) return null;
 
-  const isFreeItem = (a) => a.type === "free" || Number(a.price) === 0;
+  const getBillingMode = (addon) => {
+    const bType = billingTypes.find((b) => b.id === addon?.type);
+    return bType ? bType.chargeMode : (addon?.type === "per-day" ? "per-day" : (addon?.type === "free" ? "free" : "one-time"));
+  };
+  const isFreeItem = (a) => getBillingMode(a) === "free" || Number(a.price) === 0;
+  const isPerDay = (a) => getBillingMode(a) === "per-day";
+  const getAddonUnitPrice = (a) => isFreeItem(a) ? 0 : (isPerDay(a) ? Number(a.price) * days : Number(a.price));
+  const getAddonBadgeText = (a) => {
+    const unitPrice = getAddonUnitPrice(a);
+    if (isFreeItem(a)) return lang === "kh" ? "ឥតគិតថ្លៃ" : "FREE";
+    if (isPerDay(a)) return `$${unitPrice} ($${a.price}/d)`;
+    const bType = billingTypes.find((b) => b.id === a.type);
+    return `$${unitPrice} ${bType ? bType.name : (lang === "kh" ? "ក្នុង១" : "each")}`;
+  };
+
   const freeAddons = addons.filter(isFreeItem);
   const paidAddons = addons.filter((a) => !isFreeItem(a));
 
@@ -417,7 +432,7 @@ export default function AddonSelector({
                   {paidAddons.map((addon) => {
                     const isSelected = (addonQuantities[addon.id] || 0) > 0;
                     const qty = addonQuantities[addon.id] || 0;
-                    const unitPrice = addon.type === "per-day" ? addon.price * days : addon.price;
+                    const unitPrice = getAddonUnitPrice(addon);
 
                     return (
                       <div
@@ -455,7 +470,7 @@ export default function AddonSelector({
                         {/* Price Badge & Add Button */}
                         <div className="custom-row-right">
                           <span className="custom-row-price">
-                            ${unitPrice} {addon.type === "per-day" ? `($${addon.price}/d)` : "each"}
+                            {getAddonBadgeText(addon)}
                           </span>
                           <button
                             type="button"
@@ -488,7 +503,7 @@ export default function AddonSelector({
             <div className="clean-items-grid" style={{ marginTop: "14px" }}>
               {selectedPaidList.map((addon) => {
                 const qty = addonQuantities[addon.id] || 1;
-                const unitPrice = addon.type === "per-day" ? addon.price * days : addon.price;
+                const unitPrice = getAddonUnitPrice(addon);
                 const cost = unitPrice * qty;
 
                 return (
@@ -520,7 +535,7 @@ export default function AddonSelector({
                             <div className="clean-item-title">
                               {addon.name}
                               <span className="clean-badge-paid">
-                                ${unitPrice} {addon.type === "per-day" ? "/day" : "each"}
+                                {getAddonBadgeText(addon)}
                               </span>
                             </div>
                             <div className="clean-item-meta">

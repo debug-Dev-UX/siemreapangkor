@@ -44,9 +44,7 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: clip;
 }
 
 body {
@@ -57,9 +55,7 @@ body {
   line-height: 1.5;
   touch-action: manipulation;
   letter-spacing: -0.01em;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

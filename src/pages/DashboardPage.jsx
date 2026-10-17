@@ -11,6 +11,7 @@ import {
   saveInquiry,
   saveCoupons,
   subscribeToCloudData,
+  calculateAddonCost,
 } from "../utils/storageHelper";
 import { translations } from "../utils/translations";
 import { CheckCircle2 } from "lucide-react";
@@ -22,6 +23,7 @@ export default function DashboardPage() {
   const [settings, setSettings] = useState(data.settings);
   const [addons, setAddons] = useState(data.addons || []);
   const [coupons, setCoupons] = useState(data.coupons || []);
+  const [billingTypes, setBillingTypes] = useState(data.billingTypes || []);
 
   // Listen for real-time live cloud data updates from Firestore across all devices
   useEffect(() => {
@@ -31,6 +33,7 @@ export default function DashboardPage() {
       if (cloud.settings !== undefined) setSettings((prev) => ({ ...prev, ...cloud.settings }));
       if (cloud.addons !== undefined) setAddons(cloud.addons);
       if (cloud.coupons !== undefined) setCoupons(cloud.coupons);
+      if (cloud.billingTypes !== undefined) setBillingTypes(cloud.billingTypes);
     });
     return () => unsubscribe();
   }, []);
@@ -288,12 +291,12 @@ export default function DashboardPage() {
       .map((addon) => {
         const qty = addonQuantities[addon.id] || 0;
         if (qty <= 0) return null;
-        const unitPrice = addon.type === "per-day" ? addon.price * tripDays : addon.price;
+        const unitPrice = calculateAddonCost(addon, tripDays, billingTypes);
         const cost = unitPrice * qty;
         return { addon, qty, cost };
       })
       .filter(Boolean);
-  }, [addons, addonQuantities, tripDays]);
+  }, [addons, addonQuantities, tripDays, billingTypes]);
 
   // Overall Financial Calculations
   const roomCost = selectedRoomItems.reduce((sum, item) => sum + item.cost, 0);
@@ -416,6 +419,7 @@ export default function DashboardPage() {
     // Save inquiry to admin panel
     saveInquiry({
       quoteId,
+      status: "pending",
       roomName:
         selectedRoomItems.length > 0
           ? selectedRoomItems.map((i) => `${i.room.name} (×${i.qty})`).join(", ")
@@ -424,14 +428,43 @@ export default function DashboardPage() {
         selectedMotoItems.length > 0
           ? selectedMotoItems.map((i) => `${i.moto.name} (×${i.qty})`).join(", ")
           : null,
+      selectedRoomItems: selectedRoomItems.map((i) => ({
+        room: { id: i.room.id, name: i.room.name, pricePerNight: i.room.pricePerNight, image: i.room.image },
+        qty: i.qty,
+        nights: i.nights,
+        cost: i.cost,
+      })),
+      selectedMotoItems: selectedMotoItems.map((i) => ({
+        moto: { id: i.moto.id, name: i.moto.name, pricePerDay: i.moto.pricePerDay, image: i.moto.image },
+        qty: i.qty,
+        days: i.days,
+        cost: i.cost,
+      })),
+      selectedAddonItems: selectedAddonItems.map((i) => ({
+        addon: { id: i.addon.id, name: i.addon.name, price: i.addon.price, type: i.addon.type, image: i.addon.image },
+        qty: i.qty,
+        cost: i.cost,
+      })),
+      addons: selectedAddonItems.map((i) => ({
+        name: i.addon.name,
+        qty: i.qty,
+        price: i.addon.price,
+        cost: i.cost,
+        type: i.addon.type,
+      })),
       tripDays,
       startDate,
       endDate,
       startTime,
       endTime,
+      subtotalUSD: subtotal,
+      discountUSD: comboDiscountAmount + couponDiscountAmount,
+      comboDiscountUSD: comboDiscountAmount,
+      couponDiscountUSD: couponDiscountAmount,
       couponCode: appliedCoupon ? appliedCoupon.code : null,
       totalUSD: finalTotalUSD,
       totalKHR: finalTotalKHR,
+      adminNotes: "",
       createdAt: new Date().toISOString(),
     });
 
@@ -525,7 +558,7 @@ export default function DashboardPage() {
         t={t}
       />
 
-      <main className="app-container" style={{ paddingBottom: "100px" }}>
+      <main className="app-container" style={{ paddingBottom: "100px", paddingTop: "24px" }}>
         {/* Date Selector */}
         <DateSelector
           startDate={startDate}
@@ -572,6 +605,7 @@ export default function DashboardPage() {
           addonQuantities={addonQuantities}
           onUpdateAddonQty={handleUpdateAddonQty}
           days={tripDays}
+          billingTypes={billingTypes}
           lang={lang}
           t={t}
         />

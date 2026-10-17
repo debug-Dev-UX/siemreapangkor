@@ -124,9 +124,6 @@ export default function AddonSelector({
           <div className="extra-category-header">
             <div className="extra-category-title-wrap">
               <span className="extra-badge-pill free">🎁 100% FREE</span>
-              <h3 className="extra-category-title">
-                {lang === "kh" ? "សម្ភារ និងការផ្ដល់ជូនហ្វ្រី (Free Inclusions)" : "Free Inclusions & Equipment"}
-              </h3>
             </div>
             {selectedFreeList.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -358,9 +355,6 @@ export default function AddonSelector({
           <div className="extra-category-header">
             <div className="extra-category-title-wrap">
               <span className="extra-badge-pill paid">💎 Optional Extras</span>
-              <h3 className="extra-category-title">
-                {lang === "kh" ? "សេវាកម្ម និងសម្ភារបន្ថែមបង់ប្រាក់ (Paid Extras)" : "Paid Extra Services & Accessories"}
-              </h3>
             </div>
             {selectedPaidList.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>

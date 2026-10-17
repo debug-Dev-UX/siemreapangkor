@@ -415,7 +415,27 @@ export default function AdminPage() {
       alert("No inquiries to export!");
       return;
     }
-    const headers = ["Quote ID", "Status", "Created At", "Start Date", "End Date", "Days", "Room", "Motorbike", "Addons", "Total USD", "Total KHR", "Customer Name", "Customer Phone", "Admin Notes"];
+    const headers = [
+      "Quote ID",
+      "Status",
+      "Created At",
+      "Start Date",
+      "End Date",
+      "Days",
+      "Room",
+      "Motorbike",
+      "Addons",
+      "Subtotal USD",
+      "Coupon Code",
+      "Coupon Discount USD",
+      "Combo Discount USD",
+      "Total Discount USD",
+      "Total USD",
+      "Total KHR",
+      "Customer Name",
+      "Customer Phone",
+      "Admin Notes",
+    ];
     const rows = displayedInquiries.map((i) => [
       `"${i.quoteId || ""}"`,
       `"${i.status || "pending"}"`,
@@ -426,6 +446,11 @@ export default function AdminPage() {
       `"${(i.roomName || "").replace(/"/g, '""')}"`,
       `"${(i.motoName || "").replace(/"/g, '""')}"`,
       `"${(i.addons ? i.addons.map((a) => `${a.name} (x${a.qty})`).join("; ") : "").replace(/"/g, '""')}"`,
+      `"${i.subtotalUSD || i.totalUSD || 0}"`,
+      `"${i.couponCode || ""}"`,
+      `"${i.couponDiscountUSD || 0}"`,
+      `"${i.comboDiscountUSD || 0}"`,
+      `"${i.discountUSD || 0}"`,
       `"${i.totalUSD || 0}"`,
       `"${i.totalKHR || 0}"`,
       `"${(i.customerName || "").replace(/"/g, '""')}"`,
@@ -839,6 +864,7 @@ export default function AdminPage() {
       room: inquiries.filter((i) => i.roomName || (i.selectedRoomItems && i.selectedRoomItems.length > 0)).length,
       extra: inquiries.filter((i) => (i.addons && i.addons.length > 0) || (i.selectedAddonItems && i.selectedAddonItems.length > 0)).length,
       highValue: inquiries.filter((i) => Number(i.totalUSD || 0) >= 50).length,
+      coupon: inquiries.filter((i) => Boolean(i.couponCode) || Number(i.discountUSD || 0) > 0 || Number(i.couponDiscountUSD || 0) > 0).length,
     };
   }, [inquiries]);
 
@@ -861,6 +887,7 @@ export default function AdminPage() {
         if (inquiryFilterShot === "room" && !inq.roomName && (!inq.selectedRoomItems || inq.selectedRoomItems.length === 0)) return false;
         if (inquiryFilterShot === "extra" && (!inq.addons || inq.addons.length === 0) && (!inq.selectedAddonItems || inq.selectedAddonItems.length === 0)) return false;
         if (inquiryFilterShot === "high-value" && Number(inq.totalUSD || 0) < 50) return false;
+        if (inquiryFilterShot === "coupon" && !inq.couponCode && Number(inq.discountUSD || 0) <= 0 && Number(inq.couponDiscountUSD || 0) <= 0) return false;
         if (inquiryFilterShot === "today") {
           const inqDate = inq.createdAt ? inq.createdAt.split("T")[0] : inq.startDate;
           if (inqDate !== todayStr) return false;
@@ -3019,6 +3046,15 @@ export default function AdminPage() {
 
                     <button
                       type="button"
+                      className={`filter-shot-chip ${inquiryFilterShot === "coupon" ? "is-active" : ""}`}
+                      onClick={() => setInquiryFilterShot("coupon")}
+                    >
+                      <span>🎟️ With Coupon</span>
+                      <span className="chip-count">{inquiryCounts.coupon}</span>
+                    </button>
+
+                    <button
+                      type="button"
                       className={`filter-shot-chip ${inquiryFilterShot === "high-value" ? "is-active" : ""}`}
                       onClick={() => setInquiryFilterShot("high-value")}
                     >
@@ -3034,7 +3070,7 @@ export default function AdminPage() {
                     <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
                     <input
                       type="text"
-                      placeholder="Search Quote #, customer, room, moto, notes..."
+                      placeholder="Search quote #, customer, room, moto, coupon, notes..."
                       className="input-field"
                       style={{ paddingLeft: "30px", paddingRight: "10px", height: "36px", fontSize: "0.82rem" }}
                       value={inquirySearch}
@@ -3169,6 +3205,8 @@ export default function AdminPage() {
                       const isSelected = selectedInquiryIds.includes(inq.quoteId);
                       const hasAddons = inq.addons && inq.addons.length > 0;
                       const hasNotes = Boolean(inq.adminNotes?.trim());
+                      const hasCoupon = Boolean(inq.couponCode);
+                      const hasDiscount = Number(inq.discountUSD || inq.couponDiscountUSD || 0) > 0;
 
                       return (
                         <div
@@ -3222,9 +3260,9 @@ export default function AdminPage() {
                                   {inq.tripDays || inq.days || 1} {(inq.tripDays || inq.days || 1) === 1 ? "day" : "days"}
                                 </span>
 
-                                {inq.couponCode && (
-                                  <span style={{ fontSize: "0.72rem", background: "#fef3c7", color: "#b45309", padding: "2px 8px", borderRadius: "12px", fontWeight: 700 }}>
-                                    Promo: {inq.couponCode}
+                                {hasCoupon && (
+                                  <span style={{ fontSize: "0.74rem", background: "#fef3c7", color: "#b45309", padding: "2px 8px", borderRadius: "12px", fontWeight: 700, border: "1px solid #fde68a", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                    🎟️ Coupon: {inq.couponCode} {inq.couponDiscountUSD ? `(-$${inq.couponDiscountUSD})` : (inq.discountUSD ? `(-$${inq.discountUSD})` : "")}
                                   </span>
                                 )}
                               </div>
@@ -3273,9 +3311,19 @@ export default function AdminPage() {
                           {/* Right: Price & Actions */}
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
                             <div style={{ textAlign: "right" }}>
+                              {inq.subtotalUSD && Number(inq.subtotalUSD) > Number(inq.totalUSD) && (
+                                <div style={{ fontSize: "0.76rem", color: "#94a3b8", textDecoration: "line-through" }}>
+                                  ${inq.subtotalUSD}
+                                </div>
+                              )}
                               <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.35rem", color: "#059669" }}>
                                 ${inq.totalUSD}
                               </div>
+                              {hasDiscount && (
+                                <div style={{ fontSize: "0.72rem", color: "#dc2626", fontWeight: 700 }}>
+                                  Discount -${inq.discountUSD || inq.couponDiscountUSD}
+                                </div>
+                              )}
                               <div style={{ fontSize: "0.78rem", color: "#64748b" }}>
                                 {inq.totalKHR?.toLocaleString()} KHR
                               </div>
@@ -3456,6 +3504,44 @@ export default function AdminPage() {
                           </div>
                         </div>
 
+                        {/* Discounts & Coupon Breakdown (ព័ត៌មានបញ្ចុះតម្លៃ) */}
+                        {(viewingInquiry.couponCode || Number(viewingInquiry.discountUSD || 0) > 0 || Number(viewingInquiry.couponDiscountUSD || 0) > 0) && (
+                          <div style={{ background: "#fefce8", padding: "14px 16px", borderRadius: "8px", border: "1px solid #fef08a" }}>
+                            <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#854d0e", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span>🎟️ Coupon & Discount Details (ព័ត៌មានបញ្ចុះតម្លៃ):</span>
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.82rem" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", color: "#713f12" }}>
+                                <span>Original Subtotal (តម្លៃដើមសរុប):</span>
+                                <span style={{ fontWeight: 700 }}>
+                                  ${viewingInquiry.subtotalUSD || (Number(viewingInquiry.totalUSD) + Number(viewingInquiry.discountUSD || 0))} USD
+                                </span>
+                              </div>
+                              {viewingInquiry.couponCode && (
+                                <div style={{ display: "flex", justifyContent: "space-between", color: "#b45309", fontWeight: 700 }}>
+                                  <span>Coupon Code ({viewingInquiry.couponCode}):</span>
+                                  <span>
+                                    -${viewingInquiry.couponDiscountUSD || viewingInquiry.discountUSD || 0} USD
+                                    {viewingInquiry.couponDiscountValue ? ` (${viewingInquiry.couponDiscountType === "percent" ? `${viewingInquiry.couponDiscountValue}%` : `$${viewingInquiry.couponDiscountValue}`})` : ""}
+                                  </span>
+                                </div>
+                              )}
+                              {Number(viewingInquiry.comboDiscountUSD || 0) > 0 && (
+                                <div style={{ display: "flex", justifyContent: "space-between", color: "#b45309" }}>
+                                  <span>Combo Special Discount:</span>
+                                  <span style={{ fontWeight: 700 }}>-${viewingInquiry.comboDiscountUSD} USD</span>
+                                </div>
+                              )}
+                              <div style={{ borderTop: "1px dashed #fde047", paddingTop: "6px", display: "flex", justifyContent: "space-between", color: "#854d0e", fontWeight: 800 }}>
+                                <span>Total Amount Discounted (តម្លៃដែលបានបញ្ចុះ):</span>
+                                <span style={{ color: "#dc2626" }}>
+                                  -${viewingInquiry.discountUSD || viewingInquiry.couponDiscountUSD || 0} USD
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Financial Totals */}
                         <div style={{ background: "#f8fafc", padding: "14px 16px", borderRadius: "8px", border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <div>
@@ -3543,7 +3629,17 @@ export default function AdminPage() {
                     endTime={voucherModalInquiry.endTime || "18:00"}
                     settings={settings}
                     quoteId={voucherModalInquiry.quoteId}
-                    appliedCoupon={voucherModalInquiry.couponCode ? { code: voucherModalInquiry.couponCode } : null}
+                    appliedCoupon={
+                      voucherModalInquiry.couponCode
+                        ? {
+                            code: voucherModalInquiry.couponCode,
+                            discountAmount: voucherModalInquiry.couponDiscountUSD || voucherModalInquiry.discountUSD || 0,
+                          }
+                        : null
+                    }
+                    couponDiscountAmount={voucherModalInquiry.couponDiscountUSD || voucherModalInquiry.discountUSD || 0}
+                    comboDiscountAmount={voucherModalInquiry.comboDiscountUSD || 0}
+                    totalUSD={voucherModalInquiry.totalUSD}
                     lang="en"
                   />
                 )}

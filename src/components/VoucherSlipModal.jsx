@@ -17,6 +17,9 @@ export default function VoucherSlipModal({
   quoteId,
   onSendTelegram,
   appliedCoupon,
+  couponDiscountAmount: directCouponDiscount,
+  comboDiscountAmount: directComboDiscount,
+  totalUSD: directTotalUSD,
   lang = "kh",
   t,
 }) {
@@ -31,13 +34,20 @@ export default function VoucherSlipModal({
 
   const isCombo = selectedRoomItems.length > 0 && selectedMotoItems.length > 0;
   const comboDiscountRate = isCombo ? (settings.comboDiscountPercent || 0) / 100 : 0;
-  const comboDiscountAmount = Math.round((roomCost + motoCost) * comboDiscountRate);
+  const calculatedComboDiscount = Math.round((roomCost + motoCost) * comboDiscountRate);
+  const comboDiscountAmount = directComboDiscount !== undefined ? Number(directComboDiscount) : calculatedComboDiscount;
 
   const subtotal = roomCost + motoCost + addonsCost;
 
   let couponDiscountAmount = 0;
-  if (appliedCoupon) {
-    if (appliedCoupon.discountType === "percent") {
+  if (directCouponDiscount !== undefined) {
+    couponDiscountAmount = Number(directCouponDiscount) || 0;
+  } else if (appliedCoupon) {
+    if (appliedCoupon.discountAmount !== undefined) {
+      couponDiscountAmount = Number(appliedCoupon.discountAmount) || 0;
+    } else if (appliedCoupon.couponDiscountUSD !== undefined) {
+      couponDiscountAmount = Number(appliedCoupon.couponDiscountUSD) || 0;
+    } else if (appliedCoupon.discountType === "percent") {
       couponDiscountAmount = Math.round(subtotal * (Number(appliedCoupon.discountValue || 0) / 100));
     } else {
       couponDiscountAmount = Math.min(subtotal, Number(appliedCoupon.discountValue || 0));
@@ -45,7 +55,7 @@ export default function VoucherSlipModal({
   }
 
   const totalDiscount = comboDiscountAmount + couponDiscountAmount;
-  const finalTotalUSD = Math.max(0, subtotal - totalDiscount);
+  const finalTotalUSD = directTotalUSD !== undefined ? Number(directTotalUSD) : Math.max(0, subtotal - totalDiscount);
   const finalTotalKHR = Math.round(finalTotalUSD * (settings.exchangeRateKHR || 4000));
 
   const closeText = lang === "kh" ? "(បិទ)" : "(close)";

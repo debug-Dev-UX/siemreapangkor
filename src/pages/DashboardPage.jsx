@@ -462,6 +462,16 @@ export default function DashboardPage() {
       comboDiscountUSD: comboDiscountAmount,
       couponDiscountUSD: couponDiscountAmount,
       couponCode: appliedCoupon ? appliedCoupon.code : null,
+      couponDiscountType: appliedCoupon ? appliedCoupon.discountType : null,
+      couponDiscountValue: appliedCoupon ? appliedCoupon.discountValue : null,
+      appliedCoupon: appliedCoupon
+        ? {
+            code: appliedCoupon.code,
+            discountType: appliedCoupon.discountType,
+            discountValue: appliedCoupon.discountValue,
+            discountAmount: couponDiscountAmount,
+          }
+        : null,
       totalUSD: finalTotalUSD,
       totalKHR: finalTotalKHR,
       adminNotes: "",
@@ -489,7 +499,7 @@ export default function DashboardPage() {
     const lines = [];
     lines.push(`សួរស្ដីបងខ្ញុំចង់${greetingItem}`);
     lines.push(`- ចាប់ផ្ដើមថ្ងៃទី ${startDate} ម៉ោង ${startTime}`);
-    lines.push(`-ចប់ថ្ងៃទី ${endDate} ម៉ោង ${endTime}`);
+    lines.push(`- ចប់ថ្ងៃទី ${endDate} ម៉ោង ${endTime}`);
     lines.push("");
 
     if (hasMotos) {
@@ -516,8 +526,38 @@ export default function DashboardPage() {
       });
     }
 
-    lines.push("");
-    lines.push(`Total: ${finalTotalUSD}$`);
+    // Subtotal and Coupon / Discount breakdown in message
+    if (comboDiscountAmount > 0 || couponDiscountAmount > 0) {
+      lines.push("");
+      lines.push(`- តម្លៃដើមសរុប (Subtotal): ${subtotal}$`);
+
+      if (comboDiscountAmount > 0) {
+        lines.push(`- បញ្ចុះតម្លៃ Combo (${settings.comboDiscountPercent || 10}%): -${comboDiscountAmount}$`);
+      }
+
+      if (appliedCoupon && couponDiscountAmount > 0) {
+        const discountLabel =
+          appliedCoupon.discountType === "percent"
+            ? `${appliedCoupon.discountValue}%`
+            : `${appliedCoupon.discountValue}$`;
+        lines.push(`- 🎟️ Coupon (${appliedCoupon.code} -${discountLabel}): -${couponDiscountAmount}$ (បញ្ចុះតម្លៃ)`);
+      }
+
+      const totalSaved = comboDiscountAmount + couponDiscountAmount;
+      if (totalSaved > 0) {
+        lines.push(`- ចំណេញបានសរុប (Total Saved): -${totalSaved}$`);
+      }
+
+      lines.push("");
+      lines.push(`សរុបត្រូវបង់ (Final Total): ${finalTotalUSD}$ (${finalTotalKHR.toLocaleString()} ៛)`);
+    } else {
+      lines.push("");
+      lines.push(`Total: ${finalTotalUSD}$ (${finalTotalKHR.toLocaleString()} ៛)`);
+    }
+
+    if (quoteId) {
+      lines.push(`(Quote ID: #${quoteId})`);
+    }
 
     const message = lines.join("\n");
     const cleanUsername = (settings.telegramUsername || "Motor_Rental_Siemreap_Angkor").replace("@", "");

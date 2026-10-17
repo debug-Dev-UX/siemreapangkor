@@ -529,34 +529,21 @@ export default function DashboardPage() {
     // Subtotal and Coupon / Discount breakdown in message
     if (comboDiscountAmount > 0 || couponDiscountAmount > 0) {
       lines.push("");
-      lines.push(`- តម្លៃដើមសរុប (Subtotal): ${subtotal}$`);
+      lines.push(`- Subtotal: ${subtotal}$`);
 
       if (comboDiscountAmount > 0) {
-        lines.push(`- បញ្ចុះតម្លៃ Combo (${settings.comboDiscountPercent || 10}%): -${comboDiscountAmount}$`);
+        lines.push(`- Combo Discount: -${comboDiscountAmount}$`);
       }
 
       if (appliedCoupon && couponDiscountAmount > 0) {
-        const discountLabel =
-          appliedCoupon.discountType === "percent"
-            ? `${appliedCoupon.discountValue}%`
-            : `${appliedCoupon.discountValue}$`;
-        lines.push(`- 🎟️ Coupon (${appliedCoupon.code} -${discountLabel}): -${couponDiscountAmount}$ (បញ្ចុះតម្លៃ)`);
-      }
-
-      const totalSaved = comboDiscountAmount + couponDiscountAmount;
-      if (totalSaved > 0) {
-        lines.push(`- ចំណេញបានសរុប (Total Saved): -${totalSaved}$`);
+        lines.push(`- 🎟️ Coupon: ${appliedCoupon.code} -${couponDiscountAmount}$`);
       }
 
       lines.push("");
-      lines.push(`សរុបត្រូវបង់ (Final Total): ${finalTotalUSD}$ (${finalTotalKHR.toLocaleString()} ៛)`);
+      lines.push(`Final Total: ${finalTotalUSD}$ = ${finalTotalKHR.toLocaleString()} ៛`);
     } else {
       lines.push("");
-      lines.push(`Total: ${finalTotalUSD}$ (${finalTotalKHR.toLocaleString()} ៛)`);
-    }
-
-    if (quoteId) {
-      lines.push(`(Quote ID: #${quoteId})`);
+      lines.push(`Final Total: ${finalTotalUSD}$ = ${finalTotalKHR.toLocaleString()} ៛`);
     }
 
     const message = lines.join("\n");

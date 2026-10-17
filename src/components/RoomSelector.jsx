@@ -10,6 +10,7 @@ export default function RoomSelector({
   onUpdateRoomNights,
   onClearRooms,
   defaultNights = 1,
+  isLoading = false,
   lang = "kh",
   t,
 }) {
@@ -35,14 +36,16 @@ export default function RoomSelector({
               {t?.step1Title || (lang === "kh" ? "បន្ទប់ (Room)" : "Room")}
             </h2>
             <p className="clean-section-desc">
-              {selectedCount > 0
+              {isLoading
+                ? (lang === "kh" ? "កំពុងទាញយកទិន្នន័យពី Database..." : "Loading rooms from database...")
+                : selectedCount > 0
                 ? `${totalRoomsQty} ${totalRoomsQty === 1 ? (t?.room || "room") : (t?.rooms || "rooms")} selected`
                 : (lang === "kh" ? "ជ្រើសរើសបន្ទប់ស្នាក់នៅរបស់អ្នកនៅសៀមរាប" : "Select your accommodation in Siem Reap")}
             </p>
           </div>
         </div>
 
-        {selectedCount > 0 && (
+        {!isLoading && selectedCount > 0 && (
           <button
             type="button"
             onClick={onClearRooms}
@@ -55,7 +58,36 @@ export default function RoomSelector({
         )}
       </div>
 
-      {!hasRooms ? (
+      {isLoading ? (
+        <div style={{ marginTop: "12px" }}>
+          {/* Skeleton Trigger */}
+          <div className="skeleton-trigger-box skeleton-shimmer" />
+
+          {/* Skeleton Cards Grid */}
+          <div className="skeleton-grid">
+            {[1, 2].map((n) => (
+              <div key={n} className="skeleton-card">
+                <div className="skeleton-card-thumb skeleton-shimmer" />
+                <div className="skeleton-card-body">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="skeleton-title-line skeleton-shimmer" style={{ width: "60%" }} />
+                    <div className="skeleton-badge-pill skeleton-shimmer" />
+                  </div>
+                  <div className="skeleton-desc-line skeleton-shimmer" />
+                  <div className="skeleton-chips-row">
+                    <div className="skeleton-chip skeleton-shimmer" />
+                    <div className="skeleton-chip skeleton-shimmer" />
+                  </div>
+                  <div className="skeleton-footer-row">
+                    <div className="skeleton-price-block skeleton-shimmer" />
+                    <div className="skeleton-action-btn skeleton-shimmer" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : !hasRooms ? (
         <div style={{
           padding: "20px 16px",
           background: "#f8fafc",

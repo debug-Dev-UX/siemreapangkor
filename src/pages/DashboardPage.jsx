@@ -17,9 +17,10 @@ import { translations } from "../utils/translations";
 import { CheckCircle2 } from "lucide-react";
 
 export default function DashboardPage() {
-  const [data] = useState(() => loadStoredData());
-  const [rooms, setRooms] = useState(data.rooms);
-  const [motos, setMotos] = useState(data.motos);
+  const [isLoading, setIsLoading] = useState(true);
+  const [data] = useState(() => loadStoredData(false));
+  const [rooms, setRooms] = useState(data.rooms || []);
+  const [motos, setMotos] = useState(data.motos || []);
   const [settings, setSettings] = useState(data.settings);
   const [addons, setAddons] = useState(data.addons || []);
   const [coupons, setCoupons] = useState(data.coupons || []);
@@ -27,15 +28,31 @@ export default function DashboardPage() {
 
   // Listen for real-time live cloud data updates from Firestore across all devices
   useEffect(() => {
-    const unsubscribe = subscribeToCloudData((cloud) => {
-      if (cloud.rooms !== undefined) setRooms(cloud.rooms);
-      if (cloud.motos !== undefined) setMotos(cloud.motos);
-      if (cloud.settings !== undefined) setSettings((prev) => ({ ...prev, ...cloud.settings }));
-      if (cloud.addons !== undefined) setAddons(cloud.addons);
-      if (cloud.coupons !== undefined) setCoupons(cloud.coupons);
-      if (cloud.billingTypes !== undefined) setBillingTypes(cloud.billingTypes);
-    });
-    return () => unsubscribe();
+    // Safety fallback to prevent endless loading if network offline
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2500);
+
+    const unsubscribe = subscribeToCloudData(
+      (cloud) => {
+        if (cloud.rooms !== undefined) setRooms(cloud.rooms);
+        if (cloud.motos !== undefined) setMotos(cloud.motos);
+        if (cloud.settings !== undefined) setSettings((prev) => ({ ...prev, ...cloud.settings }));
+        if (cloud.addons !== undefined) setAddons(cloud.addons);
+        if (cloud.coupons !== undefined) setCoupons(cloud.coupons);
+        if (cloud.billingTypes !== undefined) setBillingTypes(cloud.billingTypes);
+        setIsLoading(false);
+        clearTimeout(timer);
+      },
+      () => {
+        setIsLoading(false);
+        clearTimeout(timer);
+      }
+    );
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, []);
 
   // Language state (default to khmer 'kh' on first visit, or read from localStorage)
@@ -609,6 +626,7 @@ export default function DashboardPage() {
           onUpdateRoomNights={handleUpdateRoomNights}
           onClearRooms={handleClearRooms}
           defaultNights={tripDays}
+          isLoading={isLoading}
           lang={lang}
           t={t}
         />
@@ -622,6 +640,7 @@ export default function DashboardPage() {
           onUpdateMotoDays={handleUpdateMotoDays}
           onClearMotos={handleClearMotos}
           defaultDays={tripDays}
+          isLoading={isLoading}
           lang={lang}
           t={t}
         />
@@ -633,6 +652,7 @@ export default function DashboardPage() {
           onUpdateAddonQty={handleUpdateAddonQty}
           days={tripDays}
           billingTypes={billingTypes}
+          isLoading={isLoading}
           lang={lang}
           t={t}
         />

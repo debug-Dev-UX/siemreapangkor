@@ -18,6 +18,7 @@ export default function AddonSelector({
   onUpdateAddonQty,
   days = 1,
   billingTypes = [],
+  isLoading = false,
   lang = "kh",
   t,
 }) {
@@ -25,6 +26,32 @@ export default function AddonSelector({
   const [isPaidOpen, setIsPaidOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [previewTitle, setPreviewTitle] = useState("");
+
+  if (isLoading) {
+    return (
+      <section className="clean-section-card" style={{ marginTop: "20px" }}>
+        <div className="clean-section-header">
+          <div className="clean-header-info">
+            <div className="clean-icon-pill" style={{ background: "#eff6ff", color: "#2563eb" }}>
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <h2 className="clean-section-title">
+                {t?.step3Title || (lang === "kh" ? "សេវាកម្មបន្ថែម (Extras)" : "Extras")}
+              </h2>
+              <p className="clean-section-desc">
+                {lang === "kh" ? "កំពុងទាញយកទិន្នន័យពី Database..." : "Loading extra services from database..."}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "12px" }}>
+          <div className="skeleton-trigger-box skeleton-shimmer" />
+          <div className="skeleton-trigger-box skeleton-shimmer" />
+        </div>
+      </section>
+    );
+  }
 
   if (!addons || addons.length === 0) return null;
 

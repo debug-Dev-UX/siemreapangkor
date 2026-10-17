@@ -35,8 +35,11 @@ async function syncToCloud(partialData) {
 }
 
 // Real-time synchronization listener for all devices (phones, laptops, customers)
-export function subscribeToCloudData(onUpdate) {
-  if (!db) return () => {};
+export function subscribeToCloudData(onUpdate, onDone) {
+  if (!db) {
+    if (typeof onDone === "function") onDone();
+    return () => {};
+  }
   try {
     const docRef = doc(db, CLOUD_COLLECTION, CLOUD_DOC);
     const unsubscribe = onSnapshot(
@@ -57,28 +60,24 @@ export function subscribeToCloudData(onUpdate) {
           if (typeof onUpdate === "function") {
             onUpdate(cloudData);
           }
-        } else {
-          // If cloud document does not exist yet, seed it from local data so all devices get the same data
-          const current = loadStoredData();
-          syncToCloud({
-            rooms: current.rooms,
-            motos: current.motos,
-            settings: current.settings,
-            addons: current.addons,
-            coupons: current.coupons,
-            billingTypes: current.billingTypes,
-            inquiries: current.inquiries,
-            lastSyncedAt: new Date().toISOString(),
-          });
+        }
+        if (typeof onDone === "function") {
+          onDone();
         }
       },
       (err) => {
         console.warn("Firestore onSnapshot error (ensure firestore.rules allow read):", err);
+        if (typeof onDone === "function") {
+          onDone();
+        }
       }
     );
     return unsubscribe;
   } catch (err) {
     console.warn("Failed to subscribe to cloud data:", err);
+    if (typeof onDone === "function") {
+      onDone();
+    }
     return () => {};
   }
 }
@@ -99,7 +98,7 @@ export async function forcePushAllToCloud() {
   return current;
 }
 
-export function loadStoredData() {
+export function loadStoredData(includeDemoFallback = false) {
   // Clear any old demo/test keys if present
   try {
     localStorage.removeItem("siemreap_angkor_rooms_clean_v3");
@@ -114,12 +113,13 @@ export function loadStoredData() {
     // ignore
   }
 
-  let rooms = INITIAL_ROOMS;
-  let motos = INITIAL_MOTOS;
+  // Do not use demo data by default; start with real data or empty list until database responds
+  let rooms = includeDemoFallback ? INITIAL_ROOMS : [];
+  let motos = includeDemoFallback ? INITIAL_MOTOS : [];
   let settings = INITIAL_SETTINGS;
-  let addons = INITIAL_ADDONS;
+  let addons = includeDemoFallback ? INITIAL_ADDONS : [];
   let billingTypes = INITIAL_BILLING_TYPES;
-  let coupons = INITIAL_COUPONS;
+  let coupons = includeDemoFallback ? INITIAL_COUPONS : [];
   let inquiries = [];
 
   try {

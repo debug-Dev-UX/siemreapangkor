@@ -59,9 +59,10 @@ import {
 } from "../utils/storageHelper";
 
 export default function AdminPage() {
-  const [data, setData] = useState(() => loadStoredData());
-  const [rooms, setRooms] = useState(data.rooms);
-  const [motos, setMotos] = useState(data.motos);
+  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState(() => loadStoredData(false));
+  const [rooms, setRooms] = useState(data.rooms || []);
+  const [motos, setMotos] = useState(data.motos || []);
   const [addons, setAddons] = useState(data.addons || []);
   const [settings, setSettings] = useState(data.settings);
   const [inquiries, setInquiries] = useState(data.inquiries || []);
@@ -70,16 +71,28 @@ export default function AdminPage() {
 
   // Listen for real-time live updates from Cloud Firestore across all devices
   useEffect(() => {
-    const unsubscribe = subscribeToCloudData((cloud) => {
-      if (cloud.rooms !== undefined) setRooms(cloud.rooms);
-      if (cloud.motos !== undefined) setMotos(cloud.motos);
-      if (cloud.addons !== undefined) setAddons(cloud.addons);
-      if (cloud.settings !== undefined) setSettings((prev) => ({ ...prev, ...cloud.settings }));
-      if (cloud.inquiries !== undefined) setInquiries(cloud.inquiries);
-      if (cloud.coupons !== undefined) setCoupons(cloud.coupons);
-      if (cloud.billingTypes !== undefined) setBillingTypes(cloud.billingTypes);
-    });
-    return () => unsubscribe();
+    const timer = setTimeout(() => setIsLoading(false), 2500);
+    const unsubscribe = subscribeToCloudData(
+      (cloud) => {
+        if (cloud.rooms !== undefined) setRooms(cloud.rooms);
+        if (cloud.motos !== undefined) setMotos(cloud.motos);
+        if (cloud.addons !== undefined) setAddons(cloud.addons);
+        if (cloud.settings !== undefined) setSettings((prev) => ({ ...prev, ...cloud.settings }));
+        if (cloud.inquiries !== undefined) setInquiries(cloud.inquiries);
+        if (cloud.coupons !== undefined) setCoupons(cloud.coupons);
+        if (cloud.billingTypes !== undefined) setBillingTypes(cloud.billingTypes);
+        setIsLoading(false);
+        clearTimeout(timer);
+      },
+      () => {
+        setIsLoading(false);
+        clearTimeout(timer);
+      }
+    );
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, []);
 
   const [pinInput, setPinInput] = useState("");
@@ -1332,6 +1345,28 @@ export default function AdminPage() {
 
               {/* Main Active Tab Content Card */}
               <div className="admin-card-container">
+                {isLoading ? (
+                  <div style={{ padding: "8px 0" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", alignItems: "center" }}>
+                      <div className="skeleton-title-line skeleton-shimmer" style={{ width: "220px", height: "20px" }} />
+                      <div className="skeleton-action-btn skeleton-shimmer" style={{ width: "120px", height: "36px" }} />
+                    </div>
+                    <div className="skeleton-admin-table">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} className="skeleton-table-row">
+                          <div className="skeleton-cell skeleton-shimmer" style={{ width: "45px", height: "45px", borderRadius: "8px" }} />
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <div className="skeleton-title-line skeleton-shimmer" style={{ width: "40%", height: "16px" }} />
+                            <div className="skeleton-desc-line skeleton-shimmer" style={{ width: "65%", height: "12px" }} />
+                          </div>
+                          <div className="skeleton-cell skeleton-shimmer" style={{ width: "70px", height: "20px" }} />
+                          <div className="skeleton-cell skeleton-shimmer" style={{ width: "90px", height: "30px", borderRadius: "6px" }} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <>
                 {/* TAB 1: ROOMS */}
                 {activeTab === "rooms" && (
               <div>
@@ -3645,6 +3680,8 @@ export default function AdminPage() {
                 )}
               </div>
             )}
+                  </>
+                )}
               </div>
             </main>
           </div>

@@ -10,6 +10,7 @@ export default function MotoSelector({
   onUpdateMotoDays,
   onClearMotos,
   defaultDays = 1,
+  isLoading = false,
   lang = "kh",
   t,
 }) {
@@ -35,14 +36,16 @@ export default function MotoSelector({
               {t?.step2Title || (lang === "kh" ? "ម៉ូតូ (Moto)" : "Moto")}
             </h2>
             <p className="clean-section-desc">
-              {selectedCount > 0
+              {isLoading
+                ? (lang === "kh" ? "កំពុងទាញយកទិន្នន័យពី Database..." : "Loading motorbikes from database...")
+                : selectedCount > 0
                 ? `${totalMotosQty} ${totalMotosQty === 1 ? (t?.moto || "bike") : (t?.motos || "bikes")} selected (Free 2 Helmets & Mount included)`
                 : (lang === "kh" ? "ជ្រើសរើសម៉ូតូសម្រាប់ដំណើរកម្សាន្តនៅសៀមរាប" : "Select your motorbike for exploring Siem Reap")}
             </p>
           </div>
         </div>
 
-        {selectedCount > 0 && (
+        {!isLoading && selectedCount > 0 && (
           <button
             type="button"
             onClick={onClearMotos}
@@ -55,7 +58,37 @@ export default function MotoSelector({
         )}
       </div>
 
-      {!hasMotos ? (
+      {isLoading ? (
+        <div style={{ marginTop: "12px" }}>
+          {/* Skeleton Trigger */}
+          <div className="skeleton-trigger-box skeleton-shimmer" />
+
+          {/* Skeleton Cards Grid */}
+          <div className="skeleton-grid">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="skeleton-card">
+                <div className="skeleton-card-thumb skeleton-shimmer" />
+                <div className="skeleton-card-body">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="skeleton-title-line skeleton-shimmer" style={{ width: "55%" }} />
+                    <div className="skeleton-badge-pill skeleton-shimmer" />
+                  </div>
+                  <div className="skeleton-desc-line skeleton-shimmer" />
+                  <div className="skeleton-chips-row">
+                    <div className="skeleton-chip skeleton-shimmer" />
+                    <div className="skeleton-chip skeleton-shimmer" />
+                    <div className="skeleton-chip skeleton-shimmer" />
+                  </div>
+                  <div className="skeleton-footer-row">
+                    <div className="skeleton-price-block skeleton-shimmer" />
+                    <div className="skeleton-action-btn skeleton-shimmer" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : !hasMotos ? (
         <div style={{
           padding: "20px 16px",
           background: "#f8fafc",
